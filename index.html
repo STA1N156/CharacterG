@@ -1,1 +1,1250 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="cupcake">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI 角色卡工坊</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+        body { font-family: 'Noto Sans SC', sans-serif; background-color: #f3f4f6; }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; }
+        
+        .toast-enter-active, .toast-leave-active { transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+        .toast-enter-from, .toast-leave-to { opacity: 0; transform: translateY(-20px) scale(0.9); }
+        .toast-move { transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+        /* Ensure toasts appear above everything */
+        .toast-container-custom { z-index: 9999; top: 1rem; }
 
+        /* Mobile specific styles */
+        @media (max-width: 768px) {
+            /* Fix global blur on mobile */
+            .drawer-overlay {
+                backdrop-filter: none !important;
+            }
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#65c3c8',
+                        secondary: '#ef9fbc',
+                        accent: '#eeaf3a',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="h-screen flex flex-col overflow-hidden bg-base-200/30">
+
+<div id="app" class="h-full flex flex-col">
+    <!-- Header -->
+    <header class="navbar bg-base-100/80 backdrop-blur-md shadow-sm z-20 px-4 shrink-0 h-16 border-b border-base-200 sticky top-0">
+        <div class="flex-none md:hidden">
+            <label for="my-drawer" class="btn btn-square btn-ghost">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-6 h-6 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+            </label>
+        </div>
+        <div class="flex-1">
+            <a class="btn btn-ghost text-xl gap-3 px-2 hover:bg-transparent">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold shadow-md transform rotate-3">
+                    AI
+                </div>
+                <span class="font-bold text-base-content tracking-tight">角色卡工坊</span>
+            </a>
+        </div>
+        <div class="flex-none gap-2">
+            <button class="btn btn-ghost btn-circle" @click="showSettings = true">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- Settings Modal -->
+    <dialog class="modal modal-bottom sm:modal-middle" :class="{ 'modal-open': showSettings }">
+        <div class="modal-box bg-base-100">
+            <h3 class="font-bold text-lg mb-6 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-primary"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                API 设置
+            </h3>
+            <div class="flex flex-col gap-4">
+                <div class="form-control w-full">
+                    <label class="label"><span class="label-text font-medium">API 地址</span></label>
+                    <input type="text" v-model="api.url" class="input input-bordered w-full bg-base-200/50" placeholder="https://..." />
+                </div>
+                <div class="form-control w-full">
+                    <label class="label"><span class="label-text font-medium">API Key</span></label>
+                    <input type="password" v-model="api.key" class="input input-bordered w-full bg-base-200/50" placeholder="sk-..." />
+                </div>
+                <div class="form-control w-full">
+                    <label class="label"><span class="label-text font-medium">模型</span></label>
+                    <input type="text" v-model="api.model" class="input input-bordered w-full bg-base-200/50" placeholder="gpt-4..." />
+                </div>
+            </div>
+            <div class="modal-action">
+                <button class="btn btn-ghost" @click="showSettings = false">取消</button>
+                <button class="btn btn-primary text-white px-8" @click="showSettings = false">保存</button>
+            </div>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button @click="showSettings = false">close</button>
+        </form>
+    </dialog>
+
+    <!-- Confirmation Modal -->
+    <dialog class="modal modal-bottom sm:modal-middle" :class="{ 'modal-open': confirmModal.show }">
+        <div class="modal-box bg-base-100">
+            <h3 class="font-bold text-lg text-error flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+                确认操作
+            </h3>
+            <p class="py-4">{{ confirmModal.message }}</p>
+            <div class="modal-action">
+                <button class="btn btn-ghost" @click="confirmModal.show = false">取消</button>
+                <button class="btn btn-error text-white" @click="confirmAction">确认删除</button>
+            </div>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button @click="confirmModal.show = false">close</button>
+        </form>
+    </dialog>
+
+    <div class="drawer md:drawer-open flex-1 overflow-hidden">
+        <input id="my-drawer" type="checkbox" class="drawer-toggle" />
+        
+        <div class="drawer-content flex flex-col h-full overflow-hidden relative bg-base-100">
+            <!-- Main Content Area -->
+            <div class="flex-1 flex flex-col overflow-hidden">
+                <!-- Tabs -->
+                <div class="bg-base-100/50 backdrop-blur-sm border-b border-base-200 px-4 pt-2 flex-none z-10">
+                    <div class="tabs tabs-bordered">
+                        <a v-for="tab in tabs" :key="tab.id" 
+                           class="tab tab-lg transition-all duration-300" 
+                           :class="{ 'tab-active border-b-2 border-primary text-primary font-bold': activeTab === tab.id }"
+                           @click="activeTab = tab.id">
+                           {{ tab.name }}
+                           <span v-if="tab.count" class="badge badge-sm badge-ghost ml-2" :class="{ 'badge-primary text-white': activeTab === tab.id }">{{ tab.count }}</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Scrollable Content -->
+                <div class="flex-1 overflow-y-auto p-4 md:p-8 bg-base-200/30">
+                    <div class="max-w-5xl mx-auto space-y-6">
+                        
+                        <!-- Basic Info -->
+                        <div v-show="activeTab === 'basic'" class="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
+                            <!-- Avatar Column -->
+                            <div class="lg:col-span-1 flex flex-col gap-4">
+                                <div class="card bg-base-100 shadow-sm border border-base-200 overflow-visible">
+                                    <div class="card-body p-6 items-center text-center">
+                                        <div class="avatar placeholder mb-4 group relative cursor-pointer transition-transform hover:scale-105" @click="$refs.fileInput.click()">
+                                            <div class="bg-neutral text-neutral-content rounded-2xl w-32 h-32 shadow-lg ring-4 ring-base-100 ring-offset-2 ring-offset-primary/20 overflow-hidden">
+                                                <img v-if="currentCharacter.avatar" :src="currentCharacter.avatar" class="object-cover w-full h-full" />
+                                                <span v-else class="text-4xl font-bold text-base-100/50">{{ (currentCharacter.name || 'A').charAt(0).toUpperCase() }}</span>
+                                                <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white drop-shadow-md"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <input type="file" ref="fileInput" @change="handleImageUpload" class="hidden" accept="image/*" />
+                                        <h2 class="card-title text-xl font-bold text-base-content/90 truncate w-full justify-center">{{ currentCharacter.name || '未命名角色' }}</h2>
+                                        <p class="text-sm text-base-content/50 mb-4 line-clamp-2 w-full">{{ currentCharacter.description || '暂无描述' }}</p>
+                                        <div class="flex gap-2 w-full">
+                                            <button @click="exportJSON" class="btn btn-sm btn-outline flex-1 border-base-300 hover:border-base-content hover:bg-base-content hover:text-base-100">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                                JSON
+                                            </button>
+                                            <button @click="exportPNG" class="btn btn-sm btn-primary flex-1 text-white shadow-primary/30 shadow-lg">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                                                PNG
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Fields Column -->
+                            <div class="lg:col-span-2 flex flex-col gap-4">
+                                <div class="card bg-base-100 shadow-sm border border-base-200">
+                                    <div class="card-body p-6 gap-5">
+                                        <div class="form-control">
+                                            <label class="label font-bold text-base-content/70 text-sm uppercase tracking-wide">角色名称 Name</label>
+                                            <input type="text" v-model="currentCharacter.name" class="input input-bordered bg-base-200/30 focus:bg-base-100 transition-colors" placeholder="角色的名字" />
+                                        </div>
+                                        <div class="form-control">
+                                            <label class="label font-bold text-base-content/70 text-sm uppercase tracking-wide">简短描述 Description</label>
+                                            <textarea v-model="currentCharacter.description" class="textarea textarea-bordered h-24 bg-base-200/30 focus:bg-base-100 transition-colors leading-relaxed" placeholder="角色的身份、外貌等简要描述..."></textarea>
+                                        </div>
+                                        <div class="form-control">
+                                            <label class="label font-bold text-base-content/70 text-sm uppercase tracking-wide">性格 Personality</label>
+                                            <textarea v-model="currentCharacter.personality" class="textarea textarea-bordered h-24 bg-base-200/30 focus:bg-base-100 transition-colors leading-relaxed" placeholder="角色的性格特征..."></textarea>
+                                        </div>
+                                        <div class="form-control">
+                                            <label class="label font-bold text-base-content/70 text-sm uppercase tracking-wide">开场白 First Message</label>
+                                            <textarea v-model="currentCharacter.first_mes" class="textarea textarea-bordered h-32 font-mono text-sm bg-base-200/30 focus:bg-base-100 transition-colors leading-relaxed" placeholder="角色对用户说的第一句话..."></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Details -->
+                        <div v-show="activeTab === 'details'" class="flex flex-col gap-4 animate-fade-in">
+                            <div class="card bg-base-100 shadow-sm border border-base-200">
+                                <div class="card-body p-6 gap-5">
+                                    <div class="form-control">
+                                        <label class="label font-bold text-base-content/70 text-sm uppercase tracking-wide">场景 Scenario</label>
+                                        <textarea v-model="currentCharacter.scenario" class="textarea textarea-bordered h-24 bg-base-200/30 focus:bg-base-100 transition-colors leading-relaxed" placeholder="当前的背景故事或环境设置..."></textarea>
+                                    </div>
+                                    <div class="form-control">
+                                        <label class="label font-bold text-base-content/70 text-sm uppercase tracking-wide">对话示例 Message Example</label>
+                                        <textarea v-model="currentCharacter.mes_example" class="textarea textarea-bordered h-48 font-mono text-sm bg-base-200/30 focus:bg-base-100 transition-colors leading-relaxed" placeholder="<START>&#10;{{user}}: ...&#10;{{char}}: ..."></textarea>
+                                    </div>
+                                    <div class="form-control">
+                                        <label class="label font-bold text-base-content/70 text-sm uppercase tracking-wide">作者注释 Creator Notes</label>
+                                        <textarea v-model="currentCharacter.creator_notes" class="textarea textarea-bordered h-24 bg-base-200/30 focus:bg-base-100 transition-colors leading-relaxed" placeholder="给使用者的使用说明..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Advanced -->
+                        <div v-show="activeTab === 'advanced'" class="flex flex-col gap-4 animate-fade-in">
+                            <div class="card bg-base-100 shadow-sm border border-base-200">
+                                <div class="card-body p-6 gap-5">
+                                    <div class="form-control">
+                                        <label class="label font-bold text-base-content/70 text-sm uppercase tracking-wide">系统提示词 System Prompt</label>
+                                        <textarea v-model="currentCharacter.system_prompt" class="textarea textarea-bordered h-32 bg-base-200/30 focus:bg-base-100 transition-colors leading-relaxed" placeholder="额外的系统指令..."></textarea>
+                                    </div>
+                                    <div class="form-control">
+                                        <label class="label font-bold text-base-content/70 text-sm uppercase tracking-wide">历史记录后指令 Post History Instructions</label>
+                                        <textarea v-model="currentCharacter.post_history_instructions" class="textarea textarea-bordered h-24 bg-base-200/30 focus:bg-base-100 transition-colors leading-relaxed" placeholder="添加到聊天历史记录末尾的指令..."></textarea>
+                                    </div>
+                                    
+                                    <div class="divider opacity-50 text-xs font-bold text-base-content/40">EXTENSIONS</div>
+                                    
+                                    <div class="form-control">
+                                        <label class="label font-bold text-base-content/70 text-sm uppercase tracking-wide">深度提示词 Depth Prompt</label>
+                                        <div class="flex flex-col gap-3">
+                                            <textarea v-model="currentCharacter.depth_prompt.prompt" class="textarea textarea-bordered h-24 bg-base-200/30 focus:bg-base-100 transition-colors" placeholder="Prompt content..."></textarea>
+                                            <div class="flex flex-wrap gap-4">
+                                                <div class="join shadow-sm">
+                                                    <span class="join-item btn btn-sm btn-static bg-base-200 border-base-300 font-normal text-xs">Depth</span>
+                                                    <input type="number" v-model.number="currentCharacter.depth_prompt.depth" class="join-item input input-sm input-bordered w-20" />
+                                                </div>
+                                                <div class="join shadow-sm">
+                                                    <span class="join-item btn btn-sm btn-static bg-base-200 border-base-300 font-normal text-xs">Role</span>
+                                                    <select v-model="currentCharacter.depth_prompt.role" class="join-item select select-sm select-bordered">
+                                                        <option value="system">system</option>
+                                                        <option value="user">user</option>
+                                                        <option value="assistant">assistant</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="grid grid-cols-2 gap-4 mt-2">
+                                        <div class="form-control">
+                                            <label class="label font-bold text-base-content/70 text-sm uppercase tracking-wide">活跃度 Talkativeness</label>
+                                            <input type="text" v-model="currentCharacter.talkativeness" class="input input-bordered bg-base-200/30 focus:bg-base-100" />
+                                        </div>
+                                        <div class="form-control bg-base-200/30 rounded-lg px-4 border border-base-200">
+                                            <label class="label cursor-pointer h-full">
+                                                <span class="label-text font-bold text-base-content/70 text-sm uppercase tracking-wide">收藏 Fav</span>
+                                                <input type="checkbox" v-model="currentCharacter.fav" class="checkbox checkbox-primary" />
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- World Info -->
+                        <div v-show="activeTab === 'world'" class="flex flex-col gap-4 animate-fade-in">
+                            <div class="flex justify-between items-center px-1">
+                                <h3 class="font-bold text-lg flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-secondary"><circle cx="12" cy="12" r="10"/><line x1="2" x2="22" y1="12" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                                    世界书条目
+                                </h3>
+                                <div class="flex gap-2">
+                                    <button @click="exportWorldInfo" class="btn btn-sm btn-outline border-base-300" :disabled="worldInfo.length === 0">导出</button>
+                                    <button @click="addWorldEntry" class="btn btn-sm btn-primary text-white shadow-primary/30 shadow-lg">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
+                                        添加
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="space-y-3">
+                                <div v-for="(entry, index) in worldInfo" :key="index" class="collapse collapse-arrow bg-base-100 border border-base-200 shadow-sm rounded-xl group hover:border-primary/30 transition-colors">
+                                    <input type="checkbox" /> 
+                                    <div class="collapse-title font-medium flex items-center gap-3 py-4">
+                                        <span class="badge badge-neutral font-mono">#{{ index + 1 }}</span>
+                                        <span class="truncate text-base-content/80">{{ entry.name || '未命名条目' }}</span>
+                                    </div>
+                                    <div class="collapse-content">
+                                        <div class="flex flex-col gap-3 pt-2 pb-4">
+                                            <div class="form-control">
+                                                <label class="label py-1"><span class="label-text text-xs font-bold text-base-content/50 uppercase">名称 Name</span></label>
+                                                <input type="text" v-model="entry.name" class="input input-bordered input-sm bg-base-200/30" placeholder="条目名称" />
+                                            </div>
+                                            <div class="form-control">
+                                                <label class="label py-1"><span class="label-text text-xs font-bold text-base-content/50 uppercase">触发关键词 Keys</span></label>
+                                                <input type="text" v-model="entry.keyInput" @change="updateEntryKeys(entry)" class="input input-bordered input-sm bg-base-200/30" placeholder="keyword1, keyword2" />
+                                            </div>
+                                            <div class="form-control">
+                                                <label class="label py-1"><span class="label-text text-xs font-bold text-base-content/50 uppercase">内容 Content</span></label>
+                                                <textarea v-model="entry.content" class="textarea textarea-bordered h-32 text-sm bg-base-200/30" placeholder="条目内容..."></textarea>
+                                            </div>
+                                            
+                                            <div class="form-control">
+                                                <label class="label py-1"><span class="label-text text-xs font-bold text-base-content/50 uppercase">注释 Comment</span></label>
+                                                <input type="text" v-model="entry.comment" class="input input-bordered input-sm bg-base-200/30" placeholder="备注..." />
+                                            </div>
+
+                                            <!-- Advanced World Info Settings -->
+                                            <div class="bg-base-200/30 p-3 rounded-lg flex flex-col gap-3">
+                                                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                                    <div class="form-control">
+                                                        <label class="label py-0 cursor-pointer gap-2 justify-start">
+                                                            <input type="checkbox" v-model="entry.constant" class="checkbox checkbox-xs checkbox-primary" />
+                                                            <span class="label-text text-xs font-bold text-base-content/50">Constant</span>
+                                                        </label>
+                                                    </div>
+                                                    <div class="form-control">
+                                                        <label class="label py-0 cursor-pointer gap-2 justify-start">
+                                                            <input type="checkbox" v-model="entry.selective" class="checkbox checkbox-xs checkbox-primary" />
+                                                            <span class="label-text text-xs font-bold text-base-content/50">Selective</span>
+                                                        </label>
+                                                    </div>
+                                                    <div class="form-control">
+                                                        <label class="label py-0 cursor-pointer gap-2 justify-start">
+                                                            <input type="checkbox" v-model="entry.excludeRecursion" class="checkbox checkbox-xs checkbox-primary" />
+                                                            <span class="label-text text-xs font-bold text-base-content/50">Excl Recursion</span>
+                                                        </label>
+                                                    </div>
+                                                    <div class="form-control">
+                                                        <label class="label py-0 cursor-pointer gap-2 justify-start">
+                                                            <input type="checkbox" v-model="entry.matchWholeWords" class="checkbox checkbox-xs checkbox-primary" />
+                                                            <span class="label-text text-xs font-bold text-base-content/50">Whole Words</span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                                     <div class="form-control col-span-2 md:col-span-2">
+                                                        <label class="label py-0"><span class="label-text text-xs font-bold text-base-content/50">Position</span></label>
+                                                        <select v-model="entry.position" class="select select-bordered select-xs w-full">
+                                                            <option :value="0">Before Char</option>
+                                                            <option :value="1">After Char</option>
+                                                            <option :value="2">AN Top</option>
+                                                            <option :value="3">AN Bottom</option>
+                                                            <option :value="4">At Depth</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="form-control">
+                                                        <label class="label py-0"><span class="label-text text-xs font-bold text-base-content/50">Order</span></label>
+                                                        <input type="number" v-model.number="entry.order" class="input input-bordered input-xs w-full" />
+                                                    </div>
+                                                    <div class="form-control">
+                                                        <label class="label py-0"><span class="label-text text-xs font-bold text-base-content/50">Prob %</span></label>
+                                                        <input type="number" v-model.number="entry.probability" class="input input-bordered input-xs w-full" />
+                                                    </div>
+                                                    <div class="form-control">
+                                                        <label class="label py-0"><span class="label-text text-xs font-bold text-base-content/50">Depth</span></label>
+                                                        <input type="number" v-model.number="entry.depth" class="input input-bordered input-xs w-full" />
+                                                    </div>
+                                                    <div class="form-control col-span-2">
+                                                        <label class="label py-0"><span class="label-text text-xs font-bold text-base-content/50">Group</span></label>
+                                                        <input type="text" v-model="entry.group" class="input input-bordered input-xs w-full" placeholder="Group name" />
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="flex justify-end">
+                                                <button @click="removeWorldEntry(index)" class="btn btn-ghost btn-xs text-error hover:bg-error/10">删除条目</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div v-if="worldInfo.length === 0" class="flex flex-col items-center justify-center py-16 text-base-content/30 bg-base-100 rounded-xl border border-dashed border-base-300">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="mb-2"><circle cx="12" cy="12" r="10"/><line x1="2" x2="22" y1="12" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                                    <span>暂无世界书条目</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Regex -->
+                        <div v-show="activeTab === 'regex'" class="flex flex-col gap-4 animate-fade-in">
+                            <div class="flex justify-between items-center px-1">
+                                <h3 class="font-bold text-lg flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" x2="15" y1="20" y2="20"/><line x1="12" x2="12" y1="4" y2="20"/></svg>
+                                    正则脚本
+                                </h3>
+                                <div class="flex gap-2">
+                                    <button @click="exportRegex" class="btn btn-sm btn-outline border-base-300" :disabled="regexScripts.length === 0">导出</button>
+                                    <button @click="addRegexScript" class="btn btn-sm btn-primary text-white shadow-primary/30 shadow-lg">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
+                                        添加
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="space-y-3">
+                                <div v-for="(script, index) in regexScripts" :key="index" class="card bg-base-100 border border-base-200 shadow-sm rounded-xl group hover:border-primary/30 transition-colors">
+                                    <div class="card-body p-5">
+                                        <div class="flex gap-4 items-start">
+                                            <div class="flex-1 flex flex-col gap-3">
+                                                <input type="text" v-model="script.scriptName" class="input input-bordered input-sm font-bold bg-base-200/30 focus:bg-base-100" placeholder="脚本名称" />
+                                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                    <div class="form-control">
+                                                        <label class="label py-1"><span class="label-text text-xs font-bold text-base-content/50 uppercase">正则 Regex</span></label>
+                                                        <input type="text" v-model="script.findRegex" class="input input-bordered input-sm font-mono text-xs bg-base-200/30" placeholder="/pattern/flags" />
+                                                    </div>
+                                                    <div class="form-control">
+                                                        <label class="label py-1"><span class="label-text text-xs font-bold text-base-content/50 uppercase">替换 Replace</span></label>
+                                                        <input type="text" v-model="script.replaceString" class="input input-bordered input-sm font-mono text-xs bg-base-200/30" placeholder="replacement" />
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Advanced Regex Settings -->
+                                                <div class="flex flex-col gap-2 bg-base-200/30 p-3 rounded-lg mt-2">
+                                                    <div class="flex flex-wrap gap-4 items-center">
+                                                        <div class="flex items-center gap-2 border-r border-base-content/10 pr-3">
+                                                            <span class="text-xs font-bold text-base-content/50">Placement:</span>
+                                                            <label class="cursor-pointer flex items-center gap-1"><input type="checkbox" value="1" v-model="script.placement" class="checkbox checkbox-xs" /><span class="text-xs">User</span></label>
+                                                            <label class="cursor-pointer flex items-center gap-1"><input type="checkbox" value="2" v-model="script.placement" class="checkbox checkbox-xs" /><span class="text-xs">AI</span></label>
+                                                            <label class="cursor-pointer flex items-center gap-1"><input type="checkbox" value="3" v-model="script.placement" class="checkbox checkbox-xs" /><span class="text-xs">WI</span></label>
+                                                        </div>
+                                                        <label class="cursor-pointer flex items-center gap-1"><input type="checkbox" v-model="script.markdownOnly" class="checkbox checkbox-xs" /><span class="text-xs">MD Only</span></label>
+                                                        <label class="cursor-pointer flex items-center gap-1"><input type="checkbox" v-model="script.promptOnly" class="checkbox checkbox-xs" /><span class="text-xs">Prompt Only</span></label>
+                                                        <label class="cursor-pointer flex items-center gap-1"><input type="checkbox" v-model="script.runOnEdit" class="checkbox checkbox-xs" /><span class="text-xs">Run On Edit</span></label>
+                                                        <label class="cursor-pointer flex items-center gap-1"><input type="checkbox" v-model="script.substituteRegex" class="checkbox checkbox-xs" /><span class="text-xs">Sub Regex</span></label>
+                                                    </div>
+                                                    <div class="flex gap-3 items-center">
+                                                         <div class="join shadow-sm">
+                                                            <span class="join-item btn btn-xs btn-static bg-base-200 border-base-300 font-normal text-xs">Depth</span>
+                                                            <input type="number" v-model.number="script.minDepth" class="join-item input input-xs input-bordered w-16" placeholder="Min" />
+                                                            <input type="number" v-model.number="script.maxDepth" class="join-item input input-xs input-bordered w-16" placeholder="Max" />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <button @click="removeRegexScript(index)" class="btn btn-square btn-ghost btn-sm text-error self-center mt-4 hover:bg-error/10">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div v-if="regexScripts.length === 0" class="flex flex-col items-center justify-center py-16 text-base-content/30 bg-base-100 rounded-xl border border-dashed border-base-300">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="mb-2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" x2="15" y1="20" y2="20"/><line x1="12" x2="12" y1="4" y2="20"/></svg>
+                                    <span>暂无正则脚本</span>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Input Panel -->
+            <div class="bg-base-100/95 backdrop-blur-lg border-t border-base-200 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-30 shrink-0">
+                <div class="max-w-5xl mx-auto">
+                    <div class="flex gap-3 items-stretch">
+                        <!-- Textarea -->
+                        <textarea
+                            v-model="prompt"
+                            @keydown.enter.exact.prevent="generateCharacter"
+                            class="textarea textarea-bordered flex-1 h-20 md:h-24 resize-none py-3 leading-relaxed bg-base-200/50 focus:bg-base-100 focus:border-primary transition-all rounded-2xl scrollbar-hide shadow-sm hover:shadow-md focus:shadow-lg text-sm md:text-base"
+                            placeholder="描述你想创建的角色..."
+                        ></textarea>
+                        
+                        <!-- Controls Group -->
+                        <div class="flex gap-2 shrink-0 h-20 md:h-24">
+                            <!-- EXT Toggle -->
+                            <label class="btn h-full w-14 md:w-20 p-0 rounded-2xl border border-base-300 bg-base-100 hover:border-primary hover:bg-primary/5 flex flex-col items-center justify-center gap-1 group transition-all shadow-sm" :class="{'border-primary bg-primary/10 text-primary shadow-primary/10': options.generateExtra}">
+                                <input type="checkbox" v-model="options.generateExtra" class="hidden" />
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" x2="12" y1="22.08" y2="12"/></svg>
+                                <span class="text-[10px] md:text-xs font-bold">EXT</span>
+                            </label>
+
+                            <!-- Generate Button -->
+                            <button
+                                @click="isGenerating ? stopGeneration() : generateCharacter()"
+                                class="btn h-full w-20 md:w-24 rounded-2xl shadow-lg text-white p-0 overflow-hidden flex flex-col gap-1 items-center justify-center hover:scale-105 active:scale-95 transition-all duration-200"
+                                :class="isGenerating ? 'btn-error shadow-error/20' : 'btn-primary shadow-primary/20'"
+                            >
+                                <template v-if="isGenerating">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-pulse"><rect x="6" y="6" width="12" height="12" rx="2" ry="2"/></svg>
+                                    <span class="text-xs font-bold">停止</span>
+                                </template>
+                                <template v-else>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" x2="11" y1="2" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                                    <span class="text-xs font-bold">生成</span>
+                                </template>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar (Drawer) -->
+        <div class="drawer-side z-50">
+            <label for="my-drawer" aria-label="close sidebar" class="drawer-overlay backdrop-blur-sm"></label>
+            <div class="menu p-4 w-80 max-w-[20rem] h-[100dvh] min-h-full bg-base-100/80 backdrop-blur-xl text-base-content border-r border-white/10 rounded-r-3xl flex flex-col shadow-2xl overflow-hidden">
+                <div class="flex items-center justify-between mb-6 px-4 pt-2 shrink-0 gap-2">
+                    <div class="font-bold text-xl flex items-center gap-2 min-w-0 flex-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-primary shrink-0"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        <span class="truncate">角色列表</span>
+                    </div>
+                    <button @click="createNewCharacter" class="btn btn-sm btn-primary btn-circle text-white shadow-lg shadow-primary/30 shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
+                    </button>
+                </div>
+                
+                <ul class="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar overflow-x-hidden">
+                    <li v-for="(char, index) in characters" :key="index">
+                        <a @click="switchCharacter(index)"
+                           class="flex items-center gap-3 py-3 px-3 rounded-xl transition-all border border-transparent w-full max-w-full overflow-hidden relative"
+                           :class="{ 'bg-base-200 border-base-300 shadow-sm': currentCharacterIndex === index, 'hover:bg-base-100 hover:border-base-200': currentCharacterIndex !== index }">
+                            <!-- Active Indicator -->
+                            <div v-if="currentCharacterIndex === index" class="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-primary rounded-r-full"></div>
+                            
+                            <div class="avatar placeholder shrink-0">
+                                <div class="bg-gradient-to-br from-neutral to-neutral-focus text-neutral-content rounded-xl w-10 h-10 shadow-sm ring-1 ring-base-content/5">
+                                    <img v-if="char.avatar" :src="char.avatar" class="w-full h-full object-cover rounded-xl" />
+                                    <span v-else class="text-lg font-bold">{{ (char.name || 'A').charAt(0).toUpperCase() }}</span>
+                                </div>
+                            </div>
+                            <div class="flex-1 w-0 flex flex-col gap-0.5">
+                                <div class="font-bold truncate text-sm" :class="{ 'text-primary': currentCharacterIndex === index }">{{ char.name || '未命名角色' }}</div>
+                                <div class="text-xs text-base-content/40 truncate">{{ char.description || '暂无描述...' }}</div>
+                            </div>
+                            <button @click.stop="requestDeleteCharacter(index)" class="btn btn-ghost btn-xs btn-square text-base-content/20 hover:text-error hover:bg-error/10 shrink-0">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>
+                            </button>
+                        </a>
+                    </li>
+                </ul>
+
+                <div class="divider my-4"></div>
+                <div class="text-xs text-center opacity-40 font-mono">
+                    AI CharGen v1.2
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast toast-center toast-top toast-container-custom p-0 gap-2 pointer-events-none flex flex-col items-center">
+        <transition-group name="toast">
+            <div v-for="toast in toasts" :key="toast.id"
+                 class="alert shadow-xl backdrop-blur-xl border border-white/10 text-white min-w-[200px] max-w-sm rounded-full py-3 px-6 flex items-center justify-center pointer-events-auto"
+                 :class="toast.type === 'success' ? 'bg-black/70 shadow-success/10' : 'bg-black/70 shadow-error/10'">
+                <svg v-if="toast.type === 'success'" xmlns="http://www.w3.org/2000/svg" class="stroke-success shrink-0 h-5 w-5" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <svg v-else xmlns="http://www.w3.org/2000/svg" class="stroke-error shrink-0 h-5 w-5" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <span class="font-medium text-sm">{{ toast.message }}</span>
+            </div>
+        </transition-group>
+    </div>
+</div>
+
+<script>
+    const { createApp, ref, reactive, computed, watch } = Vue;
+
+    createApp({
+        setup() {
+            // State
+            const showSettings = ref(false);
+            const activeTab = ref('basic');
+            const isGenerating = ref(false);
+            const prompt = ref('');
+            const abortController = ref(null);
+            const currentCharacterIndex = ref(0);
+            
+            const api = reactive({
+                url: 'https://yunwu.zeabur.app/v1',
+                key: 'sk-kCdm03LWJ2maWtOLPdHx6WfqsQMlVvGuCt2q5oKLPWXpd0yD',
+                model: 'gemini-3-pro-preview-thinking'
+            });
+
+            const options = reactive({
+                generateExtra: false
+            });
+
+            // Confirmation Modal State
+            const confirmModal = reactive({
+                show: false,
+                message: '',
+                action: null
+            });
+
+            // Toast System
+            const toasts = ref([]);
+            let toastId = 0;
+            const showToast = (message, type = 'success') => {
+                const id = toastId++;
+                toasts.value.push({ id, message, type });
+                setTimeout(() => {
+                    const index = toasts.value.findIndex(t => t.id === id);
+                    if (index > -1) toasts.value.splice(index, 1);
+                }, 2000);
+            };
+
+            // Default Character Template
+            const createEmptyCharacter = () => ({
+                name: '',
+                description: '',
+                personality: '',
+                scenario: '',
+                first_mes: '',
+                mes_example: '',
+                creator_notes: '',
+                system_prompt: '',
+                post_history_instructions: '',
+                tags: [],
+                avatar: null,
+                talkativeness: '0.5',
+                fav: false,
+                depth_prompt: {
+                    prompt: '',
+                    depth: 4,
+                    role: 'system'
+                },
+                worldInfo: [],
+                regexScripts: []
+            });
+
+            // Load from localStorage
+            const savedCharacters = localStorage.getItem('ai_chargen_characters');
+            const characters = ref(savedCharacters ? JSON.parse(savedCharacters) : [createEmptyCharacter()]);
+
+            // Save to localStorage whenever characters change
+            watch(characters, (newVal) => {
+                localStorage.setItem('ai_chargen_characters', JSON.stringify(newVal));
+            }, { deep: true });
+
+            // Computed
+            const currentCharacter = computed(() => characters.value[currentCharacterIndex.value]);
+            const worldInfo = computed(() => currentCharacter.value.worldInfo);
+            const regexScripts = computed(() => currentCharacter.value.regexScripts);
+
+            const tabs = computed(() => [
+                { id: 'basic', name: '基本' },
+                { id: 'details', name: '详细' },
+                { id: 'advanced', name: '高级' },
+                { id: 'world', name: '世界书', count: worldInfo.value.length },
+                { id: 'regex', name: '正则', count: regexScripts.value.length }
+            ]);
+
+            // Character Management
+            const createNewCharacter = () => {
+                characters.value.push(createEmptyCharacter());
+                currentCharacterIndex.value = characters.value.length - 1;
+                // Close drawer on mobile
+                document.getElementById('my-drawer').checked = false;
+            };
+
+            const switchCharacter = (index) => {
+                currentCharacterIndex.value = index;
+                // Close drawer on mobile
+                document.getElementById('my-drawer').checked = false;
+            };
+
+            const requestDeleteCharacter = (index) => {
+                confirmModal.message = '确定要删除这个角色吗？此操作不可撤销。';
+                confirmModal.action = () => deleteCharacter(index);
+                confirmModal.show = true;
+            };
+
+            const confirmAction = () => {
+                if (confirmModal.action) {
+                    confirmModal.action();
+                }
+                confirmModal.show = false;
+            };
+
+            const deleteCharacter = (index) => {
+                characters.value.splice(index, 1);
+                if (characters.value.length === 0) {
+                    createNewCharacter();
+                } else if (currentCharacterIndex.value >= characters.value.length) {
+                    currentCharacterIndex.value = characters.value.length - 1;
+                }
+                showToast('角色已删除', 'success');
+            };
+
+            // Methods
+            const addWorldEntry = () => {
+                worldInfo.value.push({
+                    keys: [],
+                    keyInput: '',
+                    name: 'New Entry',
+                    content: '',
+                    comment: '',
+                    enabled: true,
+                    constant: false,
+                    selective: true,
+                    order: 100,
+                    position: 1, // 0: before, 1: after, etc.
+                    depth: 4,
+                    probability: 100,
+                    excludeRecursion: false,
+                    matchWholeWords: false,
+                    useProbability: true,
+                    group: ''
+                });
+            };
+
+            const removeWorldEntry = (index) => {
+                worldInfo.value.splice(index, 1);
+            };
+
+            const updateEntryKeys = (entry) => {
+                entry.keys = entry.keyInput.split(/[,，]/).map(k => k.trim()).filter(k => k);
+            };
+
+            const addRegexScript = () => {
+                regexScripts.value.push({
+                    scriptName: 'New Script',
+                    findRegex: '',
+                    replaceString: '',
+                    placement: [2], // 1: User, 2: AI, 3: WI, 4: AN
+                    disabled: false,
+                    markdownOnly: false,
+                    promptOnly: false,
+                    runOnEdit: true,
+                    substituteRegex: false,
+                    minDepth: null,
+                    maxDepth: null
+                });
+            };
+
+            const removeRegexScript = (index) => {
+                regexScripts.value.splice(index, 1);
+            };
+
+            const handleImageUpload = (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    currentCharacter.value.avatar = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            };
+
+            // Generation Logic
+            const generateCharacter = async () => {
+                if (!prompt.value) return;
+                isGenerating.value = true;
+                generatedSections.clear(); // Reset generated sections tracker
+                abortController.value = new AbortController();
+
+                const systemPrompt = `你是一个专业的角色卡生成助手。请根据用户的描述，生成一个详细的角色卡。
+必须严格按照以下格式输出，每个部分以 "### 字段名" 开头，不要包含任何其他解释性文字。
+如果用户没有特别指定，请发挥创意填充内容。
+
+需要的字段如下：
+### Name
+(角色名字)
+### Description
+(角色外貌、身份等描述，支持 {{user}} 占位符)
+### Personality
+(详细的性格描述)
+### Scenario
+(场景或背景故事)
+### First Message
+(开场白，支持 {{user}} 占位符，500-1000字，可配合世界书和正则，包含同一样式的精美前端页面)
+### Message Example
+(对话示例，格式为 {{user}}: ... 生成的角色名:...)
+### Creator Notes
+(作者注释)
+### System Prompt
+(系统提示词)
+### Post History Instructions
+(历史记录后指令)
+### Depth Prompt
+(深度提示词内容)
+### Talkativeness
+(0.0 到 1.0 之间的数字)
+${options.generateExtra ? `### World Info
+(世界书条目，必须是合法的 JSON 数组格式。包含字段：
+- name (字符串): 条目名称 (必填，最好是中文)
+- keys (字符串数组): 触发词
+- content (字符串): 内容
+- comment (字符串): 备注
+- constant (布尔): 是否常驻
+- selective (布尔): 是否选择性触发
+- position (数字 0-4): 插入位置
+- order (数字): 插入顺序
+- probability (数字 0-100): 触发概率
+- useProbability (布尔): 是否启用概率
+- depth (数字): 扫描深度
+- excludeRecursion (布尔): 是否排除递归
+- matchWholeWords (布尔): 是否全词匹配
+- group (字符串): 分组名
+)
+请生成一些能够增强沉浸感的内容，例如：
+1. 适合当前剧情的背景设定、地点、物品描述。
+2. 或者生成一个"精美的前端状态栏"（使用精美的HTML页面作为content的一部分或全部），用于显示角色的状态（如心情、好感度、位置等，而且要中文），并在content中包含样式。
+
+### Regex Scripts
+(正则脚本，必须是合法的 JSON 数组格式。包含字段：
+- scriptName (字符串): 脚本名称
+- findRegex (字符串): 正则表达式 (如 /pattern/flags)
+- replaceString (字符串): 替换内容
+- placement (数字数组 [1,2,3]): 1=User, 2=AI, 3=WI
+- markdownOnly (布尔): 仅在Markdown渲染时生效
+- promptOnly (布尔): 仅在发送给AI的Prompt中生效
+- runOnEdit (布尔): 编辑消息时是否运行
+- substituteRegex (布尔): 是否作为替换正则
+- minDepth (数字或null): 最小生效深度
+- maxDepth (数字或null): 最大生效深度
+)
+如果生成了状态栏或UI美化相关的世界书，请务必生成配套的正则脚本，将这些内容渲染到界面上或替换特定的占位符。` : ''}
+
+请确保内容丰富、生动，符合用户描述。确保所有设置都已按要求生成。不要输出任何思考过程。`;
+
+                try {
+                    const response = await fetch(`${api.url}/chat/completions`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${api.key}`
+                        },
+                        body: JSON.stringify({
+                            model: api.model,
+                            messages: [
+                                { role: 'system', content: systemPrompt },
+                                { role: 'user', content: prompt.value }
+                            ],
+                            stream: true,
+                            temperature: 0.7
+                        }),
+                        signal: abortController.value.signal
+                    });
+
+                    if (!response.ok) throw new Error('API Request Failed');
+
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    let buffer = '';
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        
+                        const chunk = decoder.decode(value, { stream: true });
+                        const lines = chunk.split('\n');
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                const data = line.slice(6);
+                                if (data === '[DONE]') continue;
+                                try {
+                                    const json = JSON.parse(data);
+                                    const content = json.choices[0]?.delta?.content || '';
+                                    if (content) {
+                                        buffer += content;
+                                        parseBuffer(buffer);
+                                    }
+                                } catch (e) {}
+                            }
+                        }
+                    }
+                    showToast('角色生成完成！', 'success');
+                } catch (error) {
+                    if (error.name !== 'AbortError') {
+                        alert('生成失败: ' + error.message);
+                    }
+                } finally {
+                    isGenerating.value = false;
+                    abortController.value = null;
+                }
+            };
+
+            const stopGeneration = () => {
+                if (abortController.value) {
+                    abortController.value.abort();
+                }
+            };
+
+            const generatedSections = reactive(new Set());
+
+            const parseBuffer = (text) => {
+                const sections = [
+                    { key: 'Name', field: 'name', label: '角色名称' },
+                    { key: 'Description', field: 'description', label: '角色描述' },
+                    { key: 'Personality', field: 'personality', label: '性格特征' },
+                    { key: 'Scenario', field: 'scenario', label: '场景设定' },
+                    { key: 'First Message', field: 'first_mes', label: '开场白' },
+                    { key: 'Message Example', field: 'mes_example', label: '对话示例' },
+                    { key: 'Creator Notes', field: 'creator_notes', label: '作者注释' },
+                    { key: 'System Prompt', field: 'system_prompt', label: '系统提示词' },
+                    { key: 'Post History Instructions', field: 'post_history_instructions', label: '历史后指令' },
+                    { key: 'Talkativeness', field: 'talkativeness', label: '活跃度' },
+                    { key: 'Depth Prompt', field: 'depth_prompt_content', label: '深度提示词' },
+                    { key: 'World Info', field: 'world_info_json', label: '世界书' },
+                    { key: 'Regex Scripts', field: 'regex_scripts_json', label: '正则脚本' }
+                ];
+
+                sections.forEach(section => {
+                    const regex = new RegExp(`### ${section.key}\\s*([\\s\\S]*?)(?=###|$)`, 'i');
+                    const match = text.match(regex);
+                    if (match) {
+                        const content = match[1].trim();
+                        
+                        // Check if section is fully generated (roughly by checking if next section header exists or simple length check for now,
+                        // but in streaming, existence in buffer usually means the previous part is done or at least started.
+                        // To be safer, we only notify once per section key)
+                        if (!generatedSections.has(section.key) && content.length > 0) {
+                            generatedSections.add(section.key);
+                            showToast(`${section.label} 生成中...`, 'success');
+                        }
+
+                        if (section.field === 'world_info_json') {
+                            try {
+                                let jsonStr = content.trim();
+                                // Remove markdown code blocks if present
+                                if (jsonStr.startsWith('```')) {
+                                    jsonStr = jsonStr.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+                                }
+                                
+                                const parsed = JSON.parse(jsonStr);
+                                if (Array.isArray(parsed)) {
+                                    currentCharacter.value.worldInfo = parsed.map(p => ({
+                                        name: p.name || 'New Entry',
+                                        keys: Array.isArray(p.keys) ? p.keys : (p.keys || '').split(','),
+                                        keyInput: Array.isArray(p.keys) ? p.keys.join(', ') : (p.keys || ''),
+                                        content: p.content || '',
+                                        comment: p.comment || '',
+                                        enabled: true,
+                                        constant: p.constant ?? false,
+                                        selective: p.selective ?? true,
+                                        position: p.position ?? 1,
+                                        order: p.order ?? 100,
+                                        probability: p.probability ?? 100,
+                                        useProbability: p.useProbability ?? true,
+                                        depth: p.depth ?? 4,
+                                        excludeRecursion: p.excludeRecursion ?? false,
+                                        matchWholeWords: p.matchWholeWords ?? false,
+                                        group: p.group || ''
+                                    }));
+                                }
+                            } catch (e) {
+                                // Only log/warn if it looks like a complete JSON block failed
+                                // console.warn('World Info Parse Error:', e);
+                            }
+                        } else if (section.field === 'regex_scripts_json') {
+                            try {
+                                let jsonStr = content.trim();
+                                // Remove markdown code blocks if present
+                                if (jsonStr.startsWith('```')) {
+                                    jsonStr = jsonStr.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+                                }
+
+                                const parsed = JSON.parse(jsonStr);
+                                if (Array.isArray(parsed)) {
+                                    currentCharacter.value.regexScripts = parsed.map(p => ({
+                                        scriptName: p.scriptName || 'Script',
+                                        findRegex: p.findRegex || '',
+                                        replaceString: p.replaceString || '',
+                                        placement: p.placement || [2],
+                                        disabled: false,
+                                        markdownOnly: p.markdownOnly ?? false,
+                                        promptOnly: p.promptOnly ?? false,
+                                        runOnEdit: p.runOnEdit ?? true,
+                                        substituteRegex: p.substituteRegex ?? false,
+                                        minDepth: p.minDepth ?? null,
+                                        maxDepth: p.maxDepth ?? null
+                                    }));
+                                }
+                            } catch (e) {
+                                // console.warn('Regex Scripts Parse Error:', e);
+                            }
+                        } else if (section.field === 'depth_prompt_content') {
+                            currentCharacter.value.depth_prompt.prompt = content;
+                        } else {
+                            currentCharacter.value[section.field] = content;
+                        }
+                    }
+                });
+            };
+
+            const getCardData = () => {
+                const char = currentCharacter.value;
+                return {
+                    spec: 'chara_card_v3',
+                    spec_version: '3.0',
+                    data: {
+                        name: char.name,
+                        description: char.description,
+                        personality: char.personality,
+                        scenario: char.scenario,
+                        first_mes: char.first_mes,
+                        mes_example: char.mes_example,
+                        creator_notes: char.creator_notes,
+                        system_prompt: char.system_prompt,
+                        post_history_instructions: char.post_history_instructions,
+                        tags: char.tags,
+                        creator: "AI CharGen",
+                        character_version: "1.0",
+                        alternate_greetings: [],
+                        extensions: {
+                            talkativeness: char.talkativeness,
+                            fav: char.fav,
+                            world: "",
+                            depth_prompt: {
+                                prompt: char.depth_prompt.prompt,
+                                depth: char.depth_prompt.depth,
+                                role: char.depth_prompt.role
+                            }
+                        },
+                        character_book: char.worldInfo.length > 0 ? {
+                            entries: char.worldInfo.map((entry, idx) => ({
+                                keys: entry.keys,
+                                content: entry.content,
+                                enabled: entry.enabled,
+                                insertion_order: entry.order,
+                                case_sensitive: false,
+                                name: entry.name || entry.keys[0] || 'Entry',
+                                priority: entry.order,
+                                id: idx,
+                                comment: entry.comment || "",
+                                selective: entry.selective,
+                                secondary_keys: [],
+                                constant: entry.constant,
+                                position: ["before_char", "after_char", "an_top", "an_bottom", "at_depth"][entry.position] || "before_char",
+                                depth: entry.depth,
+                                probability: entry.probability,
+                                use_probability: entry.useProbability,
+                                exclude_recursion: entry.excludeRecursion,
+                                match_whole_words: entry.matchWholeWords,
+                                group: entry.group
+                            }))
+                        } : undefined,
+                        regex_scripts: char.regexScripts.length > 0 ? char.regexScripts.map(s => ({
+                            ...s,
+                            id: crypto.randomUUID()
+                        })) : undefined
+                    }
+                };
+            };
+
+            const exportJSON = () => {
+                const data = getCardData();
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${currentCharacter.value.name || 'character'}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            };
+
+            const exportPNG = async () => {
+                if (!currentCharacter.value.avatar) {
+                    alert('请先上传或生成一张头像');
+                    return;
+                }
+
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const img = new Image();
+                img.src = currentCharacter.value.avatar;
+                img.crossOrigin = "Anonymous";
+                
+                await new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = reject;
+                });
+                
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+
+                const base64 = canvas.toDataURL('image/png');
+                const binary = atob(base64.split(',')[1]);
+                const array = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) {
+                    array[i] = binary.charCodeAt(i);
+                }
+
+                const cardData = getCardData();
+                const jsonStr = JSON.stringify(cardData);
+                const jsonBase64 = btoa(unescape(encodeURIComponent(jsonStr)));
+
+                const newPng = injectPngChunk(array, 'chara', jsonBase64);
+                
+                const blob = new Blob([newPng], { type: 'image/png' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${currentCharacter.value.name || 'character'}.png`;
+                a.click();
+                URL.revokeObjectURL(url);
+            };
+
+            const exportWorldInfo = () => {
+                const entries = {};
+                worldInfo.value.forEach((entry, index) => {
+                    entries[index] = {
+                        uid: index,
+                        key: entry.keys,
+                        keysecondary: [],
+                        comment: entry.comment || "",
+                        content: entry.content,
+                        constant: entry.constant,
+                        selective: entry.selective,
+                        order: entry.order,
+                        position: entry.position,
+                        disable: !entry.enabled,
+                        excludeRecursion: entry.excludeRecursion,
+                        probability: entry.probability,
+                        useProbability: entry.useProbability,
+                        depth: entry.depth,
+                        group: entry.group || "",
+                        displayIndex: index,
+                        matchWholeWords: entry.matchWholeWords
+                    };
+                });
+                const data = { entries };
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${currentCharacter.value.name || 'world_info'}_world.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            };
+
+            const exportRegex = () => {
+                const data = regexScripts.value.map(script => ({
+                    id: crypto.randomUUID(),
+                    scriptName: script.scriptName,
+                    findRegex: script.findRegex,
+                    replaceString: script.replaceString,
+                    trimStrings: [],
+                    placement: script.placement,
+                    disabled: script.disabled,
+                    markdownOnly: script.markdownOnly,
+                    promptOnly: script.promptOnly,
+                    runOnEdit: script.runOnEdit,
+                    substituteRegex: script.substituteRegex,
+                    minDepth: script.minDepth,
+                    maxDepth: script.maxDepth
+                }));
+                
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${currentCharacter.value.name || 'regex'}_scripts.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            };
+
+            const injectPngChunk = (pngBuffer, key, value) => {
+                const signature = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+                const keyBytes = new TextEncoder().encode(key);
+                const valBytes = new TextEncoder().encode(value);
+                const chunkData = new Uint8Array(keyBytes.length + 1 + valBytes.length);
+                chunkData.set(keyBytes, 0);
+                chunkData[keyBytes.length] = 0;
+                chunkData.set(valBytes, keyBytes.length + 1);
+
+                const crcTable = [];
+                for (let n = 0; n < 256; n++) {
+                    let c = n;
+                    for (let k = 0; k < 8; k++) {
+                        if (c & 1) c = 0xedb88320 ^ (c >>> 1);
+                        else c = c >>> 1;
+                    }
+                    crcTable[n] = c;
+                }
+                const crc32 = (buf) => {
+                    let c = 0xffffffff;
+                    for (let i = 0; i < buf.length; i++) {
+                        c = crcTable[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
+                    }
+                    return c ^ 0xffffffff;
+                };
+
+                const type = new TextEncoder().encode('tEXt');
+                const crcInput = new Uint8Array(type.length + chunkData.length);
+                crcInput.set(type, 0);
+                crcInput.set(chunkData, type.length);
+                const crc = crc32(crcInput);
+                
+                const chunkLen = chunkData.length;
+                const fullChunk = new Uint8Array(4 + 4 + chunkLen + 4);
+                new DataView(fullChunk.buffer).setUint32(0, chunkLen, false);
+                fullChunk.set(type, 4);
+                fullChunk.set(chunkData, 8);
+                new DataView(fullChunk.buffer).setUint32(8 + chunkLen, crc, false);
+
+                let pos = 8;
+                while (pos < pngBuffer.length) {
+                    const len = new DataView(pngBuffer.buffer).getUint32(pos, false);
+                    const typeStr = String.fromCharCode(...pngBuffer.slice(pos + 4, pos + 8));
+                    if (typeStr === 'IHDR') {
+                        pos += 8 + len + 4;
+                        break;
+                    }
+                    pos += 8 + len + 4;
+                }
+
+                const result = new Uint8Array(pngBuffer.length + fullChunk.length);
+                result.set(pngBuffer.slice(0, pos), 0);
+                result.set(fullChunk, pos);
+                result.set(pngBuffer.slice(pos), pos + fullChunk.length);
+                return result;
+            };
+
+            return {
+                showSettings,
+                activeTab,
+                isGenerating,
+                prompt,
+                api,
+                options,
+                characters,
+                currentCharacterIndex,
+                currentCharacter,
+                worldInfo,
+                regexScripts,
+                tabs,
+                createNewCharacter,
+                switchCharacter,
+                deleteCharacter,
+                addWorldEntry,
+                removeWorldEntry,
+                updateEntryKeys,
+                addRegexScript,
+                removeRegexScript,
+                handleImageUpload,
+                generateCharacter,
+                stopGeneration,
+                exportJSON,
+                exportPNG,
+                exportWorldInfo,
+                exportRegex,
+                toasts,
+                confirmModal,
+                requestDeleteCharacter,
+                confirmAction
+            };
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>
