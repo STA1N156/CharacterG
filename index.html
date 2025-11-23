@@ -880,7 +880,7 @@
 ### Talkativeness
 (0.0 到 1.0 之间的数字)
 ### Avatar Prompt（前面的内容结束后）
-(头像提示词，请使用英文描写，格式必须为: <image>image###生成的提示词###</image> ，仅一段符合人物卡的生图提示词，novelai格式，有nsfw内容请添加nsfw标签)
+(头像提示词，请使用英文描写，格式必须为: <image>image###生成的提示词###</image> ，仅生成一段符合人物卡的生图提示词，novelai格式，有nsfw内容请添加nsfw标签，不要生成多段，避免识别错误和生成多个图片)
 ${options.generateExtra ? `### World Info
 (世界书条目，必须是合法的 JSON 数组格式。包含字段：
 - name (字符串): 条目名称 (必填，最好是中文)
@@ -1006,8 +1006,14 @@ ${options.generateExtra ? `### World Info
                     { key: 'Regex Scripts', field: 'regex_scripts_json', label: '正则脚本' }
                 ];
 
+                // 预先计算所有可能的段落标题，用于更精确的分割（白名单策略），防止内容中的 ### 导致误切
+                const sectionKeys = sections.map(s => s.key).join('|');
+
                 sections.forEach(section => {
-                    const regex = new RegExp(`### ${section.key}\\s*([\\s\\S]*?)(?=###|$)`, 'i');
+                    // 优化分割正则：
+                    // 1. (?=###\s*(?:${sectionKeys})|$) 使用白名单前瞻，只有当 ### 后面紧跟已知的段落标题时才分割
+                    // 2. 备用方案 (?=###\s|$) 要求 ### 后必须有空白，避免 image###nsfw 这种紧凑格式被切断
+                    const regex = new RegExp(`### ${section.key}\\s*([\\s\\S]*?)(?=###\\s*(?:${sectionKeys})|$)`, 'i');
                     const match = text.match(regex);
                     if (match) {
                         const content = match[1].trim();
@@ -1095,9 +1101,12 @@ ${options.generateExtra ? `### World Info
                             // 兼容两种格式：
                             // 1. 标准格式: <image>image###提示词###</image>
                             // 2. 简化格式: <image>提示词</image> (AI 有时会忽略 image### 前缀)
-                            const match = content.match(/<image>\s*(?:image###)?([\s\S]+?)(?:###)?\s*<\/image>/);
+                            // 优化：增强正则兼容性，支持 image: 前缀，忽略首尾可能的###
+                            const match = content.match(/<image>\s*(?:image(?:###|:)\s*)?([\s\S]+?)(?:###)?\s*<\/image>/i);
                             if (match) {
-                                const tag = match[1];
+                                let tag = match[1].trim();
+                                // 二次清洗：移除可能残留的 ### 前缀或后缀
+                                tag = tag.replace(/^###|###$/g, '').trim();
                                 console.log('%c[头像生成] 成功提取到提示词:', 'color: #10b981; font-weight: bold', tag);
                                 
                                 const url = `https://std.loliyc.com/generate?tag=${encodeURIComponent(tag)}&token=STD-yxyLAKX8ekcAwDoSuwMo&model=nai-diffusion-4-full&artist=[[[artist:dishwasher1910]]], {{yd_(orange_maru)}}, [artist:ciloranko], [artist:sho_(sho_lwlw)], [ningen mame], year 2024, vivid, best light and shadow effects, extremely detailed 8k wallpaper, amazing beauty, detailed characters&size=竖图&steps=38&scale=5.5&cfg=0&sampler=k_dpmpp_2m_sde&negative=pixelate&nocache=0&noise_schedule=karras`;
