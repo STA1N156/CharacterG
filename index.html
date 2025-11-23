@@ -546,8 +546,14 @@
                 </ul>
 
                 <div class="divider my-4"></div>
-                <div class="text-xs text-center opacity-40 font-mono">
-                    AI CharGen v1.2
+                <div class="px-4 pb-4 lg:pb-24 mt-auto">
+                    <button @click="requestDeleteAllCharacters" class="btn btn-error btn-outline btn-sm w-full gap-2 group hover:text-white transition-all">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                        删除全部角色
+                    </button>
+                    <div class="text-xs text-center opacity-40 font-mono mt-3">
+                        AI CharGen v1.2
+                    </div>
                 </div>
             </div>
         </div>
@@ -735,6 +741,21 @@
                 confirmModal.show = true;
             };
 
+            const requestDeleteAllCharacters = () => {
+                confirmModal.message = '⚠️ 警告：确定要删除所有角色卡吗？此操作将清空本地所有数据且不可撤销！';
+                confirmModal.action = deleteAllCharacters;
+                confirmModal.show = true;
+            };
+
+            const deleteAllCharacters = async () => {
+                characters.value = [];
+                createNewCharacter();
+                currentCharacterIndex.value = 0;
+                // Force update storage
+                await localforage.setItem('ai_chargen_characters', JSON.stringify(characters.value));
+                showToast('所有角色已清空', 'success');
+            };
+
             const confirmAction = () => {
                 if (confirmModal.action) {
                     confirmModal.action();
@@ -816,6 +837,16 @@
             // Generation Logic
             const generateCharacter = async () => {
                 if (!prompt.value) return;
+                
+                // Check if current character is blank (name, description, and avatar are empty)
+                const char = currentCharacter.value;
+                const isBlank = !char.name && !char.description && !char.personality && !char.avatar;
+
+                // Only create new if current is not blank
+                if (!isBlank) {
+                    createNewCharacter();
+                }
+                
                 showToast('开始生成...', 'info');
                 isGenerating.value = true;
                 generatedSections.clear(); // Reset generated sections tracker
@@ -1351,6 +1382,7 @@ ${options.generateExtra ? `### World Info
                 toasts,
                 confirmModal,
                 requestDeleteCharacter,
+                requestDeleteAllCharacters,
                 confirmAction,
                 storageQuotaExceeded
             };
