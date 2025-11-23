@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css" />
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
         body { font-family: 'Noto Sans SC', sans-serif; background-color: #f3f4f6; }
@@ -27,7 +28,12 @@
             .drawer-overlay {
                 backdrop-filter: none !important;
             }
+            .drawer-overlay {
+                backdrop-filter: none !important;
+            }
         }
+        /* Custom Spring Animation for Avatar */
+        .ease-spring { transition-timing-function: cubic-bezier(0.175, 0.885, 0.32, 1.275); }
     </style>
     <script>
         tailwind.config = {
@@ -67,6 +73,12 @@
             </button>
         </div>
     </header>
+
+    <!-- Storage Warning Banner -->
+    <div v-if="storageQuotaExceeded" class="bg-warning/20 border-b border-warning/20 text-warning-content px-4 py-2 text-sm text-center flex items-center justify-center gap-2 backdrop-blur-sm">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <span>本地存储已满，无法自动保存。请删除旧角色或导出备份以释放空间。</span>
+    </div>
 
     <!-- Settings Modal -->
     <dialog class="modal modal-bottom sm:modal-middle" :class="{ 'modal-open': showSettings }">
@@ -138,7 +150,7 @@
 
                 <!-- Scrollable Content -->
                 <div class="flex-1 overflow-y-auto p-4 md:p-8 bg-base-200/30">
-                    <div class="max-w-5xl mx-auto space-y-6">
+                    <div class="max-w-7xl mx-auto space-y-6">
                         
                         <!-- Basic Info -->
                         <div v-show="activeTab === 'basic'" class="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
@@ -147,24 +159,24 @@
                                 <div class="card bg-base-100 shadow-sm border border-base-200 overflow-visible">
                                     <div class="card-body p-6 items-center text-center">
                                         <div class="avatar placeholder mb-4 group relative cursor-pointer transition-transform hover:scale-105" @click="$refs.fileInput.click()">
-                                            <div class="bg-neutral text-neutral-content rounded-2xl w-32 h-32 shadow-lg ring-4 ring-base-100 ring-offset-2 ring-offset-primary/20 overflow-hidden">
-                                                <img v-if="currentCharacter.avatar" :src="currentCharacter.avatar" class="object-cover w-full h-full" />
-                                                <span v-else class="text-4xl font-bold text-base-100/50">{{ (currentCharacter.name || 'A').charAt(0).toUpperCase() }}</span>
+                                            <div class="bg-neutral text-neutral-content rounded-2xl w-32 lg:w-64 shadow-lg ring-4 ring-base-100 ring-offset-2 ring-offset-primary/20 overflow-hidden transition-all duration-500 ease-spring" :class="currentCharacter.avatar ? 'h-48 lg:h-96' : 'h-32 lg:h-64'">
+                                                <img v-if="currentCharacter.avatar" :src="currentCharacter.avatar" :key="currentCharacter.avatar" class="object-cover w-full h-full transition-opacity duration-300" />
+                                                <span v-else class="text-4xl lg:text-8xl font-bold text-base-100/50">{{ (currentCharacter.name || 'A').charAt(0).toUpperCase() }}</span>
                                                 <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                                                     <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white drop-shadow-md"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
                                                 </div>
                                             </div>
                                         </div>
                                         <input type="file" ref="fileInput" @change="handleImageUpload" class="hidden" accept="image/*" />
-                                        <h2 class="card-title text-xl font-bold text-base-content/90 truncate w-full justify-center">{{ currentCharacter.name || '未命名角色' }}</h2>
-                                        <p class="text-sm text-base-content/50 mb-4 line-clamp-2 w-full">{{ currentCharacter.description || '暂无描述' }}</p>
+                                        <h2 class="card-title text-xl lg:text-3xl font-bold text-base-content/90 truncate w-full justify-center lg:py-2">{{ currentCharacter.name || '未命名角色' }}</h2>
+                                        <p class="text-sm lg:text-lg text-base-content/50 mb-4 lg:mb-8 line-clamp-2 w-full">{{ currentCharacter.description || '暂无描述' }}</p>
                                         <div class="flex gap-2 w-full">
-                                            <button @click="exportJSON" class="btn btn-sm btn-outline flex-1 border-base-300 hover:border-base-content hover:bg-base-content hover:text-base-100">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                            <button @click="exportJSON" class="btn btn-sm lg:btn-md btn-outline flex-1 border-base-300 hover:border-base-content hover:bg-base-content hover:text-base-100 lg:text-base">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lg:w-5 lg:h-5"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
                                                 JSON
                                             </button>
-                                            <button @click="exportPNG" class="btn btn-sm btn-primary flex-1 text-white shadow-primary/30 shadow-lg">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                                            <button @click="exportPNG" class="btn btn-sm lg:btn-md btn-primary flex-1 text-white shadow-primary/30 shadow-lg lg:text-base">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lg:w-5 lg:h-5"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
                                                 PNG
                                             </button>
                                         </div>
@@ -178,7 +190,7 @@
                                     <div class="card-body p-6 gap-5">
                                         <div class="form-control">
                                             <label class="label font-bold text-base-content/70 text-sm uppercase tracking-wide">角色名称 Name</label>
-                                            <input type="text" v-model="currentCharacter.name" class="input input-bordered bg-base-200/30 focus:bg-base-100 transition-colors" placeholder="角色的名字" />
+                                            <input type="text" v-model="currentCharacter.name" class="input input-bordered lg:h-14 lg:text-xl lg:font-bold bg-base-200/30 focus:bg-base-100 transition-colors" placeholder="角色的名字" />
                                         </div>
                                         <div class="form-control">
                                             <label class="label font-bold text-base-content/70 text-sm uppercase tracking-wide">简短描述 Description</label>
@@ -457,7 +469,7 @@
 
             <!-- Bottom Input Panel -->
             <div class="bg-base-100/95 backdrop-blur-lg border-t border-base-200 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:pb-24 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-30 shrink-0">
-                <div class="max-w-5xl mx-auto">
+                <div class="max-w-7xl mx-auto">
                     <div class="flex gap-3 items-stretch">
                         <!-- Textarea -->
                         <textarea
@@ -518,7 +530,7 @@
                             
                             <div class="avatar placeholder shrink-0">
                                 <div class="bg-gradient-to-br from-neutral to-neutral-focus text-neutral-content rounded-xl w-10 h-10 shadow-sm ring-1 ring-base-content/5">
-                                    <img v-if="char.avatar" :src="char.avatar" class="w-full h-full object-cover rounded-xl" />
+                                    <img v-if="char.avatar" :src="char.avatar" :key="char.avatar" class="w-full h-full object-cover rounded-xl" />
                                     <span v-else class="text-lg font-bold">{{ (char.name || 'A').charAt(0).toUpperCase() }}</span>
                                 </div>
                             </div>
@@ -568,6 +580,7 @@
             const prompt = ref('');
             const abortController = ref(null);
             const currentCharacterIndex = ref(0);
+            const storageQuotaExceeded = ref(false);
             
             const api = reactive({
                 url: 'https://yunwu.zeabur.app/v1',
@@ -628,13 +641,65 @@
                 regexScripts: []
             });
 
-            // Load from localStorage
-            const savedCharacters = localStorage.getItem('ai_chargen_characters');
-            const characters = ref(savedCharacters ? JSON.parse(savedCharacters) : [createEmptyCharacter()]);
+            // Storage Logic (IndexedDB via localforage)
+            const characters = ref([createEmptyCharacter()]);
+            const isLoaded = ref(false);
 
-            // Save to localStorage whenever characters change
-            watch(characters, (newVal) => {
-                localStorage.setItem('ai_chargen_characters', JSON.stringify(newVal));
+            // Initialize localforage
+            localforage.config({ name: 'AICharGen', storeName: 'characters' });
+
+            // Load Data with Migration
+            const loadData = async () => {
+                try {
+                    // 1. Try to load from IndexedDB
+                    const saved = await localforage.getItem('ai_chargen_characters');
+                    if (saved) {
+                        characters.value = JSON.parse(saved);
+                    } else {
+                        // 2. Migration: Try to load from localStorage
+                        const lsSaved = localStorage.getItem('ai_chargen_characters');
+                        if (lsSaved) {
+                            console.log('Migrating data from localStorage to IndexedDB...');
+                            try {
+                                const parsed = JSON.parse(lsSaved);
+                                characters.value = parsed;
+                                // Save to IndexedDB
+                                await localforage.setItem('ai_chargen_characters', lsSaved);
+                                showToast('已成功迁移数据至大容量存储', 'success');
+                                // Optional: Clear old localStorage to free up space, but keeping for safety for now
+                            } catch (e) {
+                                console.error('Migration parsing error', e);
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.error('Data load error:', err);
+                    showToast('数据加载出错', 'error');
+                } finally {
+                    isLoaded.value = true;
+                }
+            };
+            
+            // Trigger load
+            loadData();
+
+            // Save to localforage whenever characters change
+            watch(characters, async (newVal) => {
+                if (!isLoaded.value) return; // Don't save before initial load
+                
+                try {
+                    // Use standard JSON string to keep consistency
+                    await localforage.setItem('ai_chargen_characters', JSON.stringify(newVal));
+                    if (storageQuotaExceeded.value) {
+                        storageQuotaExceeded.value = false;
+                    }
+                } catch (e) {
+                    console.error('Storage Save Error:', e);
+                    if (e.name === 'QuotaExceededError') {
+                        storageQuotaExceeded.value = true;
+                        showToast('存储空间仍然不足', 'error');
+                    }
+                }
             }, { deep: true });
 
             // Computed
@@ -743,6 +808,7 @@
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     currentCharacter.value.avatar = e.target.result;
+                    showToast('图片上传成功', 'success');
                 };
                 reader.readAsDataURL(file);
             };
@@ -761,7 +827,7 @@
 
 需要的字段如下：
 ### Name
-(角色名字)
+(角色名字，中文名字请不要使用林姓)
 ### Description
 (角色外貌、身份等描述，支持 {{user}} 占位符)
 ### Personality
@@ -782,6 +848,8 @@
 (深度提示词内容)
 ### Talkativeness
 (0.0 到 1.0 之间的数字)
+### Avatar Prompt（前面的内容结束后）
+(头像提示词，请使用英文描写，格式必须为: <image>image###生成的提示词###</image> ，仅一段符合人物卡的生图提示词，novelai格式，有nsfw内容请添加nsfw标签)
 ${options.generateExtra ? `### World Info
 (世界书条目，必须是合法的 JSON 数组格式。包含字段：
 - name (字符串): 条目名称 (必填，最好是中文)
@@ -861,6 +929,8 @@ ${options.generateExtra ? `### World Info
                                     const json = JSON.parse(data);
                                     const content = json.choices[0]?.delta?.content || '';
                                     if (content) {
+                                        // 打印流式输出原始内容，用于调试
+                                        console.log('%c[AI Stream]', 'color: #9ca3af; font-size: 10px;', content);
                                         buffer += content;
                                         parseBuffer(buffer);
                                     }
@@ -899,6 +969,7 @@ ${options.generateExtra ? `### World Info
                     { key: 'System Prompt', field: 'system_prompt', label: '系统提示词' },
                     { key: 'Post History Instructions', field: 'post_history_instructions', label: '历史后指令' },
                     { key: 'Talkativeness', field: 'talkativeness', label: '活跃度' },
+                    { key: 'Avatar Prompt', field: 'avatar_prompt', label: '头像提示词' },
                     { key: 'Depth Prompt', field: 'depth_prompt_content', label: '深度提示词' },
                     { key: 'World Info', field: 'world_info_json', label: '世界书' },
                     { key: 'Regex Scripts', field: 'regex_scripts_json', label: '正则脚本' }
@@ -980,6 +1051,38 @@ ${options.generateExtra ? `### World Info
                             }
                         } else if (section.field === 'depth_prompt_content') {
                             currentCharacter.value.depth_prompt.prompt = content;
+                        } else if (section.field === 'avatar_prompt') {
+                            // 打印当前累积的 Avatar Prompt 原始内容，用于调试正则
+                            if (content.trim()) {
+                                console.log('%c[Avatar Raw]', 'color: #ec4899; font-weight: bold', content);
+                            }
+
+                            // 简单的防抖，避免流式传输中途频繁打印
+                            if (!content.trim()) return;
+                            
+                            // 匹配 <image>... contents ...</image> 格式
+                            // 兼容两种格式：
+                            // 1. 标准格式: <image>image###提示词###</image>
+                            // 2. 简化格式: <image>提示词</image> (AI 有时会忽略 image### 前缀)
+                            const match = content.match(/<image>\s*(?:image###)?([\s\S]+?)(?:###)?\s*<\/image>/);
+                            if (match) {
+                                const tag = match[1];
+                                console.log('%c[头像生成] 成功提取到提示词:', 'color: #10b981; font-weight: bold', tag);
+                                
+                                const url = `https://std.loliyc.com/generate?tag=${encodeURIComponent(tag)}&token=STD-yxyLAKX8ekcAwDoSuwMo&model=nai-diffusion-4-full&artist=[[[artist:dishwasher1910]]], {{yd_(orange_maru)}}, [artist:ciloranko], [artist:sho_(sho_lwlw)], [ningen mame], year 2024, vivid, best light and shadow effects, extremely detailed 8k wallpaper, amazing beauty, detailed characters&size=竖图&steps=38&scale=5.5&cfg=0&sampler=k_dpmpp_2m_sde&negative=pixelate&nocache=0&noise_schedule=karras`;
+                                
+                                // 只有当 URL 发生变化时才更新和打印，避免流式传输中的重复操作
+                                if (currentCharacter.value.avatar !== url) {
+                                    console.log('%c[头像生成] 正在生成并应用头像 URL...', 'color: #3b82f6; font-weight: bold');
+                                    currentCharacter.value.avatar = url;
+                                    console.log('%c[头像生成] 头像已更新!', 'color: #10b981; font-weight: bold', url);
+                                }
+                            } else {
+                                // 只有在内容长度足够且不匹配时才打印警告，避免流式传输初期的误报
+                                if (content.length > 20) {
+                                    console.log('%c[头像生成] 正在等待完整的正则匹配... 当前内容:', 'color: #f59e0b', content);
+                                }
+                            }
                         } else {
                             currentCharacter.value[section.field] = content;
                         }
@@ -1248,7 +1351,8 @@ ${options.generateExtra ? `### World Info
                 toasts,
                 confirmModal,
                 requestDeleteCharacter,
-                confirmAction
+                confirmAction,
+                storageQuotaExceeded
             };
         }
     }).mount('#app');
