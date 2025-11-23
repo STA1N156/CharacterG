@@ -34,6 +34,9 @@
         }
         /* Custom Spring Animation for Avatar */
         .ease-spring { transition-timing-function: cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes shimmer {
+            100% { transform: translateX(100%); }
+        }
     </style>
     <script>
         tailwind.config = {
@@ -61,7 +64,7 @@
         </div>
         <div class="flex-1">
             <a class="btn btn-ghost text-xl gap-3 px-2 hover:bg-transparent">
-                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold shadow-md transform rotate-3">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold shadow-md">
                     AI
                 </div>
                 <span class="font-bold text-base-content tracking-tight">角色卡工坊</span>
@@ -470,6 +473,23 @@
             <!-- Bottom Input Panel -->
             <div class="bg-base-100/95 backdrop-blur-lg border-t border-base-200 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:pb-24 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-30 shrink-0">
                 <div class="max-w-7xl mx-auto">
+                    <!-- Progress Bar -->
+                    <transition name="fade">
+                        <div v-if="isGenerating" class="mb-3 px-1">
+                            <div class="flex justify-between items-end mb-1.5">
+                                <span class="text-sm font-bold text-primary flex items-center gap-2">
+                                    <span class="loading loading-spinner loading-xs"></span>
+                                    {{ generationStatus }}
+                                </span>
+                                <span class="text-sm font-mono text-base-content/60 font-bold">{{ Math.round(generationProgress) }}%</span>
+                            </div>
+                            <div class="relative h-1.5 w-full bg-base-200 rounded-full overflow-hidden">
+                                <div class="absolute top-0 left-0 h-full bg-gradient-to-r from-primary to-secondary transition-all duration-300 ease-out" :style="{ width: `${generationProgress}%` }"></div>
+                                <div class="absolute top-0 left-0 h-full w-full bg-white/20 animate-[shimmer_2s_infinite] skew-x-12" style="background-image: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent); transform: translateX(-100%);"></div>
+                            </div>
+                        </div>
+                    </transition>
+
                     <div class="flex gap-3 items-stretch">
                         <!-- Textarea -->
                         <textarea
@@ -546,14 +566,11 @@
                 </ul>
 
                 <div class="divider my-2 opacity-50"></div>
-                <div class="px-4 pb-4 lg:pb-8 mt-auto">
+                <div class="px-4 pb-2 lg:pb-24 mt-auto">
                     <button @click="requestDeleteAllCharacters" class="btn btn-ghost text-error/70 hover:text-error hover:bg-error/10 btn-sm w-full gap-2 group transition-all">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
                         清空所有数据
                     </button>
-                    <div class="text-[10px] text-center opacity-30 font-mono mt-2">
-                        AI CharGen v1.2
-                    </div>
                 </div>
             </div>
         </div>
@@ -588,6 +605,10 @@
             const currentCharacterIndex = ref(0);
             const storageQuotaExceeded = ref(false);
             
+            // Progress State
+            const generationProgress = ref(0);
+            const generationStatus = ref('准备中...');
+
             const api = reactive({
                 url: 'https://yunwu.zeabur.app/v1',
                 key: 'sk-kCdm03LWJ2maWtOLPdHx6WfqsQMlVvGuCt2q5oKLPWXpd0yD',
@@ -849,6 +870,8 @@
                 
                 showToast('开始生成...', 'info');
                 isGenerating.value = true;
+                generationProgress.value = 0;
+                generationStatus.value = '正在解析指令...';
                 generatedSections.clear(); // Reset generated sections tracker
                 abortController.value = new AbortController();
 
@@ -902,7 +925,7 @@ ${options.generateExtra ? `### World Info
 1. 适合当前剧情的背景设定、地点、物品描述。
 2. 或者生成一个"精美的前端状态栏"在正文末尾（使用精美独立的HTML页面作为content的一部分），用于显示角色的状态（如心情、好感度、位置等，而且必须要中文），并在content中包含样式，不要把正文包括在前端页面里，但可以包括比如心理记录等状态内容。
 3. HTML页面要合适精美，你应该将界面包裹在代码块内<html>...<html>,再放置于楼层消息中（并确保正则替换后的结果正确），界面背景不能为透明，不要使用emoji，颜色不要太深，不要把正文包括在前端页面里，不要使用敷衍简单的样式
-4. 要确保后续对话的前端界面和开场白里的前端界面有一致性，必须确保生成保证前端界面，ui,美化生成的世界书条目
+4. 要确保后续对话的前端界面和开场白里的前端界面有一致性，必须确保生成保证前端界面，ui,美化生成的世界书条目，条目中包含UI需要的信息
 
 ### Regex Scripts
 (正则脚本，必须是合法的 JSON 数组格式，配合世界书条目。包含字段：
@@ -935,7 +958,7 @@ ${options.generateExtra ? `### World Info
                                 { role: 'user', content: prompt.value }
                             ],
                             stream: true,
-                            temperature: 0.7
+                            temperature: 0.8
                         }),
                         signal: abortController.value.signal
                     });
@@ -969,14 +992,20 @@ ${options.generateExtra ? `### World Info
                             }
                         }
                     }
+                    generationProgress.value = 100;
+                    generationStatus.value = '生成完成';
                     showToast('角色生成完成！', 'success');
                 } catch (error) {
                     if (error.name !== 'AbortError') {
                         alert('生成失败: ' + error.message);
+                        generationStatus.value = '生成失败';
                     }
                 } finally {
-                    isGenerating.value = false;
-                    abortController.value = null;
+                    // Delay hiding the progress bar slightly to show 100%
+                    setTimeout(() => {
+                        isGenerating.value = false;
+                        abortController.value = null;
+                    }, 500);
                 }
             };
 
@@ -1009,6 +1038,10 @@ ${options.generateExtra ? `### World Info
                 // 预先计算所有可能的段落标题，用于更精确的分割（白名单策略），防止内容中的 ### 导致误切
                 const sectionKeys = sections.map(s => s.key).join('|');
 
+                // Calculate Total Steps based on options
+                // Base fields count (12) + Optional fields (2 if generateExtra)
+                const totalSteps = options.generateExtra ? 14 : 12;
+
                 sections.forEach(section => {
                     // 优化分割正则：
                     // 1. (?=###\s*(?:${sectionKeys})|$) 使用白名单前瞻，只有当 ### 后面紧跟已知的段落标题时才分割
@@ -1023,7 +1056,13 @@ ${options.generateExtra ? `### World Info
                         // To be safer, we only notify once per section key)
                         if (!generatedSections.has(section.key) && content.length > 0) {
                             generatedSections.add(section.key);
-                            showToast(`${section.label} 生成中...`, 'success');
+                            // showToast(`${section.label} 生成中...`, 'success'); // Remove toast to reduce noise
+                            
+                            // Update Status and Progress
+                            generationStatus.value = `正在生成: ${section.label}`;
+                            const stepProgress = (generatedSections.size / totalSteps) * 100;
+                            // Ensure progress doesn't exceed 95% until fully done
+                            generationProgress.value = Math.min(stepProgress, 99);
                         }
 
                         if (section.field === 'world_info_json') {
@@ -1393,7 +1432,9 @@ ${options.generateExtra ? `### World Info
                 requestDeleteCharacter,
                 requestDeleteAllCharacters,
                 confirmAction,
-                storageQuotaExceeded
+                storageQuotaExceeded,
+                generationProgress,
+                generationStatus
             };
         }
     }).mount('#app');
