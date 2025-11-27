@@ -103,6 +103,12 @@
                     <label class="label"><span class="label-text font-medium">模型</span></label>
                     <input type="text" v-model="api.model" class="input input-bordered w-full bg-base-200/50" placeholder="gpt-4..." />
                 </div>
+                <div class="form-control w-full">
+                    <label class="label cursor-pointer justify-start gap-4">
+                        <span class="label-text font-medium">流式输出</span>
+                        <input type="checkbox" v-model="api.stream" class="toggle toggle-primary" />
+                    </label>
+                </div>
             </div>
             <div class="modal-action">
                 <button class="btn btn-ghost" @click="showSettings = false">取消</button>
@@ -308,10 +314,6 @@
                                     </div>
                                     <div class="collapse-content">
                                         <div class="flex flex-col gap-3 pt-2 pb-4">
-                                            <div class="form-control">
-                                                <label class="label py-1"><span class="label-text text-xs font-bold text-base-content/50 uppercase">名称 Name</span></label>
-                                                <input type="text" v-model="entry.name" class="input input-bordered input-sm bg-base-200/30" placeholder="条目名称" />
-                                            </div>
                                             <div class="form-control">
                                                 <label class="label py-1"><span class="label-text text-xs font-bold text-base-content/50 uppercase">触发关键词 Keys</span></label>
                                                 <input type="text" v-model="entry.keyInput" @change="updateEntryKeys(entry)" class="input input-bordered input-sm bg-base-200/30" placeholder="keyword1, keyword2" />
@@ -612,7 +614,8 @@
             const api = reactive({
                 url: 'https://iai.iisbo.com/v1',
                 key: 'sk-OCmlgK5SoyJ6vMjqZhlMcTR2Pmz54A87X2kU8wSFNWxbxzNc',
-                model: '[bo+]gemini-3-pro-preview-1.5'
+                model: '[bo+]gemini-3-pro-preview-thinking-1.5',
+                stream: true
             });
 
             // Options with persistence
@@ -799,7 +802,7 @@
                 worldInfo.value.push({
                     keys: [],
                     keyInput: '',
-                    name: 'New Entry',
+                    name: '',
                     content: '',
                     comment: '',
                     enabled: true,
@@ -906,10 +909,9 @@
 (头像提示词，请使用英文描写，格式必须为: <image>image###生成的提示词###</image> ，仅一段符合人物卡的生图提示词，novelai格式，有nsfw内容请添加nsfw标签)
 ${options.generateExtra ? `### World Info
 (世界书条目，必须是合法的 JSON 数组格式，可根据角色卡复杂程度决定条目数量的多少。包含字段：
-- name (字符串): 条目名称 (必填，最好是中文)
 - keys (字符串数组): 触发词
 - content (字符串): 内容
-- comment (字符串): (最好是中文，要和name一模一样)
+- comment (字符串): (必填，最好是中文，作为条目的标识)
 - constant (布尔): 是否常驻
 - selective (布尔): 是否选择性触发
 - position (数字 0-4): 插入位置
@@ -926,6 +928,7 @@ ${options.generateExtra ? `### World Info
 2. 或者生成一个"精美的前端页面"在正文的末尾部分（使用精美独立的HTML页面作为content的一部分），用于显示配合角色卡的相关内容，如手机页面，角色状态栏，内心想法等，且内容要为中文，或其他沉浸感的UI/美化内容，并在content中包含样式，不要把正文包括在前端页面里。
 3. HTML页面要合适精美，有沉浸感，你应该将界面包裹在代码块内<html>...<html>,再放置于楼层消息中（并确保正则替换后的结果正确），界面背景不能为透明，禁止使用emoji，可以使用svg，颜色不要太深，不要把正文包括在前端页面里，不要使用敷衍简单的样式
 4. 要确保后续对话的前端界面和开场白里的前端界面有一致性，必要时要有确保生成前端界面，ui,美化生成的世界书条目，条目中包含UI需要的信息
+5. 角色卡需要也可生成复杂的前端页面（如支持折叠，展开，切换页面）
 
 ### Regex Scripts
 (正则脚本，必须是合法的 JSON 数组格式，配合世界书条目或正文内容。包含字段：
@@ -957,7 +960,7 @@ ${options.generateExtra ? `### World Info
                                 { role: 'system', content: systemPrompt },
                                 { role: 'user', content: prompt.value }
                             ],
-                            stream: true,
+                            stream: api.stream,
                             temperature: 0.8
                         }),
                         signal: abortController.value.signal
@@ -965,32 +968,39 @@ ${options.generateExtra ? `### World Info
 
                     if (!response.ok) throw new Error('API Request Failed');
 
-                    const reader = response.body.getReader();
-                    const decoder = new TextDecoder();
-                    let buffer = '';
+                    if (api.stream) {
+                        const reader = response.body.getReader();
+                        const decoder = new TextDecoder();
+                        let buffer = '';
 
-                    while (true) {
-                        const { done, value } = await reader.read();
-                        if (done) break;
-                        
-                        const chunk = decoder.decode(value, { stream: true });
-                        const lines = chunk.split('\n');
-                        for (const line of lines) {
-                            if (line.startsWith('data: ')) {
-                                const data = line.slice(6);
-                                if (data === '[DONE]') continue;
-                                try {
-                                    const json = JSON.parse(data);
-                                    const content = json.choices[0]?.delta?.content || '';
-                                    if (content) {
-                                        // 打印流式输出原始内容，用于调试
-                                        console.log('%c[AI Stream]', 'color: #9ca3af; font-size: 10px;', content);
-                                        buffer += content;
-                                        parseBuffer(buffer);
-                                    }
-                                } catch (e) {}
+                        while (true) {
+                            const { done, value } = await reader.read();
+                            if (done) break;
+                            
+                            const chunk = decoder.decode(value, { stream: true });
+                            const lines = chunk.split('\n');
+                            for (const line of lines) {
+                                if (line.startsWith('data: ')) {
+                                    const data = line.slice(6);
+                                    if (data === '[DONE]') continue;
+                                    try {
+                                        const json = JSON.parse(data);
+                                        const content = json.choices[0]?.delta?.content || '';
+                                        if (content) {
+                                            // 打印流式输出原始内容，用于调试
+                                            console.log('%c[AI Stream]', 'color: #9ca3af; font-size: 10px;', content);
+                                            buffer += content;
+                                            parseBuffer(buffer);
+                                        }
+                                    } catch (e) {}
+                                }
                             }
                         }
+                    } else {
+                        const data = await response.json();
+                        const content = data.choices[0]?.message?.content || '';
+                        console.log('%c[AI Response]', 'color: #9ca3af; font-size: 10px;', content);
+                        parseBuffer(content);
                     }
                     generationProgress.value = 100;
                     generationStatus.value = '生成完成';
@@ -1076,7 +1086,7 @@ ${options.generateExtra ? `### World Info
                                 const parsed = JSON.parse(jsonStr);
                                 if (Array.isArray(parsed)) {
                                     currentCharacter.value.worldInfo = parsed.map(p => ({
-                                        name: p.name || 'New Entry',
+                                        name: p.comment || p.name || 'New Entry',
                                         keys: Array.isArray(p.keys) ? p.keys : (p.keys || '').split(','),
                                         keyInput: Array.isArray(p.keys) ? p.keys.join(', ') : (p.keys || ''),
                                         content: p.content || '',
