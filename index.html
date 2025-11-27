@@ -908,7 +908,7 @@
 ### Avatar Prompt（前面的内容结束后）
 (头像提示词，请使用英文描写，格式必须为: <image>image###生成的提示词###</image> ，仅一段符合人物卡的生图提示词，novelai格式，有nsfw内容请添加nsfw标签)
 ${options.generateExtra ? `### World Info
-(世界书条目，用来加强设定，补充人物卡内容，增强AI记忆能力，必须是合法的 JSON 数组格式，应根据角色卡复杂程度决定条目数量的多少。包含字段：
+(世界书条目，用来加强设定，补充详细内容，增强AI记忆能力，必须是合法的 JSON 数组格式，应根据角色卡复杂程度决定条目数量的多少。包含字段：
 - keys (字符串数组): 触发词
 - content (字符串): 内容（必须详细，尤其有关剧情内容/角色设定/UI部分/美化页面的，禁止省略）
 - comment (字符串): (必填，最好是中文，作为条目的标识)
@@ -1047,9 +1047,9 @@ ${options.generateExtra ? `### World Info
                 // 预先计算所有可能的段落标题，用于更精确的分割（白名单策略），防止内容中的 ### 导致误切
                 const sectionKeys = sections.map(s => s.key).join('|');
 
-                // Calculate Total Steps based on options
-                // Base fields count (8) + Optional fields (2 if generateExtra)
-                const totalSteps = options.generateExtra ? 10 : 8;
+                // 定义基础字段集合和额外字段集合
+                const baseSectionKeys = new Set(['Name', 'Description', 'Personality', 'Scenario', 'First Message', 'Creator Notes', 'Talkativeness', 'Avatar Prompt']);
+                const extraSectionKeys = new Set(['World Info', 'Regex Scripts']);
 
                 sections.forEach(section => {
                     // 优化分割正则：
@@ -1067,11 +1067,33 @@ ${options.generateExtra ? `### World Info
                             generatedSections.add(section.key);
                             // showToast(`${section.label} 生成中...`, 'success'); // Remove toast to reduce noise
                             
-                            // Update Status and Progress
+                            // Update Status
                             generationStatus.value = `正在生成: ${section.label}`;
-                            const stepProgress = (generatedSections.size / totalSteps) * 100;
-                            // Ensure progress doesn't exceed 95% until fully done
-                            generationProgress.value = Math.min(stepProgress, 99);
+                            
+                            // Calculate Progress with Weights
+                            let currentProgress = 0;
+                            let completedBaseCount = 0;
+                            let completedExtraCount = 0;
+
+                            generatedSections.forEach(key => {
+                                if (baseSectionKeys.has(key)) completedBaseCount++;
+                                else if (extraSectionKeys.has(key)) completedExtraCount++;
+                            });
+
+                            if (options.generateExtra) {
+                                // 有额外内容：基础占 70%，额外占 30%
+                                // 基础部分 8 个，每个占 70/8 = 8.75%
+                                // 额外部分 2 个，每个占 30/2 = 15%
+                                const baseProgress = (completedBaseCount / 8) * 70;
+                                const extraProgress = (completedExtraCount / 2) * 30;
+                                currentProgress = baseProgress + extraProgress;
+                            } else {
+                                // 无额外内容：基础占 100%
+                                currentProgress = (completedBaseCount / 8) * 100;
+                            }
+
+                            // Ensure progress doesn't exceed 99% until fully done
+                            generationProgress.value = Math.min(currentProgress, 99);
                         }
 
                         if (section.field === 'world_info_json') {
