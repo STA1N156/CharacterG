@@ -424,7 +424,16 @@
                                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                                                     <div class="form-control">
                                                         <label class="label py-1"><span class="label-text text-xs font-bold text-base-content/50 uppercase">正则 Regex</span></label>
-                                                        <input type="text" v-model="script.findRegex" class="input input-bordered input-sm font-mono text-xs bg-base-200/30" placeholder="/pattern/flags" />
+                                                        <div class="flex flex-col gap-1">
+                                                            <input type="text" v-model="script.findRegex" class="input input-bordered input-sm font-mono text-xs bg-base-200/30 w-full" placeholder="/pattern/flags" />
+                                                            <div class="flex items-center gap-2 px-1">
+                                                                <span class="text-[10px] font-bold text-base-content/30 uppercase">Flags:</span>
+                                                                <label class="cursor-pointer flex items-center gap-1 hover:text-primary transition-colors" title="Global Match"><input type="checkbox" :checked="hasFlag(script, 'g')" @change="toggleFlag(script, 'g')" class="checkbox checkbox-xs checkbox-primary rounded-sm w-3 h-3" /><span class="text-[10px] font-mono font-bold">g</span></label>
+                                                                <label class="cursor-pointer flex items-center gap-1 hover:text-primary transition-colors" title="Case Insensitive"><input type="checkbox" :checked="hasFlag(script, 'i')" @change="toggleFlag(script, 'i')" class="checkbox checkbox-xs checkbox-primary rounded-sm w-3 h-3" /><span class="text-[10px] font-mono font-bold">i</span></label>
+                                                                <label class="cursor-pointer flex items-center gap-1 hover:text-primary transition-colors" title="Multiline"><input type="checkbox" :checked="hasFlag(script, 'm')" @change="toggleFlag(script, 'm')" class="checkbox checkbox-xs checkbox-primary rounded-sm w-3 h-3" /><span class="text-[10px] font-mono font-bold">m</span></label>
+                                                                <label class="cursor-pointer flex items-center gap-1 hover:text-primary transition-colors" title="Dot All (Dot matches newline)"><input type="checkbox" :checked="hasFlag(script, 's')" @change="toggleFlag(script, 's')" class="checkbox checkbox-xs checkbox-primary rounded-sm w-3 h-3" /><span class="text-[10px] font-mono font-bold">s</span></label>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                     <div class="form-control">
                                                         <label class="label py-1"><span class="label-text text-xs font-bold text-base-content/50 uppercase">替换 Replace</span></label>
@@ -437,9 +446,9 @@
                                                     <div class="flex flex-wrap gap-4 items-center">
                                                         <div class="flex items-center gap-2 border-r border-base-content/10 pr-3">
                                                             <span class="text-xs font-bold text-base-content/50">Placement:</span>
-                                                            <label class="cursor-pointer flex items-center gap-1"><input type="checkbox" value="1" v-model="script.placement" class="checkbox checkbox-xs" /><span class="text-xs">User</span></label>
-                                                            <label class="cursor-pointer flex items-center gap-1"><input type="checkbox" value="2" v-model="script.placement" class="checkbox checkbox-xs" /><span class="text-xs">AI</span></label>
-                                                            <label class="cursor-pointer flex items-center gap-1"><input type="checkbox" value="3" v-model="script.placement" class="checkbox checkbox-xs" /><span class="text-xs">WI</span></label>
+                                                            <label class="cursor-pointer flex items-center gap-1"><input type="checkbox" :value="1" v-model="script.placement" class="checkbox checkbox-xs" /><span class="text-xs">User</span></label>
+                                                            <label class="cursor-pointer flex items-center gap-1"><input type="checkbox" :value="2" v-model="script.placement" class="checkbox checkbox-xs" /><span class="text-xs">AI</span></label>
+                                                            <label class="cursor-pointer flex items-center gap-1"><input type="checkbox" :value="3" v-model="script.placement" class="checkbox checkbox-xs" /><span class="text-xs">WI</span></label>
                                                         </div>
                                                         <label class="cursor-pointer flex items-center gap-1"><input type="checkbox" v-model="script.markdownOnly" class="checkbox checkbox-xs" /><span class="text-xs">MD Only</span></label>
                                                         <label class="cursor-pointer flex items-center gap-1"><input type="checkbox" v-model="script.promptOnly" class="checkbox checkbox-xs" /><span class="text-xs">Prompt Only</span></label>
@@ -832,6 +841,7 @@
                     scriptName: 'New Script',
                     findRegex: '',
                     replaceString: '',
+                    trimStrings: [],
                     placement: [2], // 1: User, 2: AI, 3: WI, 4: AN
                     disabled: false,
                     markdownOnly: false,
@@ -845,6 +855,49 @@
 
             const removeRegexScript = (index) => {
                 regexScripts.value.splice(index, 1);
+            };
+
+            const getRegexParts = (str) => {
+                if (!str) return { pattern: '', flags: '' };
+                // Robustly parse /pattern/flags, handling escaped slashes
+                if (str.startsWith('/')) {
+                    const lastSlashIndex = str.lastIndexOf('/');
+                    if (lastSlashIndex > 0) {
+                        const possibleFlags = str.slice(lastSlashIndex + 1);
+                        // Only consider it a valid regex literal if the suffix contains only valid flags
+                        if (/^[gimsuy]*$/.test(possibleFlags)) {
+                            return {
+                                pattern: str.slice(1, lastSlashIndex),
+                                flags: possibleFlags
+                            };
+                        }
+                    }
+                }
+                return { pattern: str, flags: '' };
+            };
+
+            const hasFlag = (script, flag) => {
+                const { flags } = getRegexParts(script.findRegex || '');
+                return flags.includes(flag);
+            };
+
+            const toggleFlag = (script, flag) => {
+                let { pattern, flags } = getRegexParts(script.findRegex || '');
+                // 如果是纯文本没有 / 包裹，加上包裹
+                if (script.findRegex && !script.findRegex.startsWith('/')) {
+                    pattern = script.findRegex;
+                }
+                
+                if (flags.includes(flag)) {
+                    flags = flags.replace(flag, '');
+                } else {
+                    flags += flag;
+                }
+                // 保持 flags 顺序美观
+                const order = 'gims';
+                flags = flags.split('').sort((a, b) => order.indexOf(a) - order.indexOf(b)).join('');
+                
+                script.findRegex = `/${pattern}/${flags}`;
             };
 
             const handleImageUpload = (event) => {
@@ -884,9 +937,9 @@
 
 需要的字段如下：
 ### Name
-(角色卡名字，人物中文名字请不要使用林，苏姓，且避免使用婉儿作为名字，可使用整体内容/主题为角色卡名称)
+(角色卡名字，人物中文名字请不要使用林，苏姓，且避免使用婉儿作为名字，多人或复杂角色卡应使用整体内容/世界观/主题为角色卡名称)
 ### Description
-(角色卡描述，支持 {{user}} 占位符，未具体要求性别则默认为女，或类似系统的无性别角色/旁白)
+(角色卡简单描述，支持 {{user}} 占位符，未具体要求性别则默认为女，或类似系统的无性别角色/旁白)
 ### Personality
 (详细的描述)
 ### Scenario
@@ -908,9 +961,9 @@
 ### Avatar Prompt（前面的内容结束后）
 (头像提示词，请使用英文描写，格式必须为: <image>image###生成的提示词###</image> ，仅一段符合人物卡的生图提示词，novelai格式，有nsfw内容请添加nsfw标签)
 ${options.generateExtra ? `### World Info
-(世界书条目，必须是合法的 JSON 数组格式，可根据角色卡复杂程度决定条目数量的多少。包含字段：
+(世界书条目，必须是合法的 JSON 数组格式，应根据角色卡复杂程度决定条目数量的多少。包含字段：
 - keys (字符串数组): 触发词
-- content (字符串): 内容
+- content (字符串): 内容（必须详细，尤其有关UI部分/美化页面的生成，禁止省略）
 - comment (字符串): (必填，最好是中文，作为条目的标识)
 - constant (布尔): 是否常驻
 - selective (布尔): 是否选择性触发
@@ -925,15 +978,18 @@ ${options.generateExtra ? `### World Info
 )
 用户有对HTML网页前端代码自动渲染能力，请生成一些能够增强沉浸感的内容（你应该将界面包裹在代码块内<html>...<html>,再放置于楼层消息中,例如：
 1. 适合当前剧情的背景设定、地点、物品描述。
-2. 或者生成一个"精美的前端页面"在正文的末尾部分（使用精美独立的HTML页面作为content的一部分），用于显示配合角色卡的相关内容，如手机页面，角色状态栏，内心想法等，且内容要为中文，或其他沉浸感的UI/美化内容，并在content中包含样式，不要把正文包括在前端页面里。
-3. HTML页面要合适精美，有沉浸感，你应该将界面包裹在代码块内<html>...<html>,再放置于楼层消息中（并确保正则替换后的结果正确），界面背景不能为透明，禁止使用emoji，可以使用svg，颜色不要太深，不要把正文包括在前端页面里，不要使用敷衍简单的样式
+2. 或者生成一个"精美的前端页面"在正文的末尾部分（使用精美独立的HTML页面作为content的一部分或包含整段正文），用于显示配合角色卡的相关内容，如手机页面，角色状态栏，内心想法等，且内容要为中文，或其他沉浸感的UI/美化内容，并在content中包含样式。
+3. HTML页面要合适精美，有沉浸感，你应该将界面包裹在代码块内<html>...<html>,再放置于楼层消息中（并确保正则替换后的结果正确），界面背景不能为透明，禁止使用emoji，可以使用svg，颜色不要太深，不要使用敷衍简单的样式
 4. 要确保后续对话的前端界面和开场白里的前端界面有一致性，必要时要有确保生成前端界面，ui,美化生成的世界书条目，条目中包含UI需要的信息
-5. 角色卡需要也可生成复杂的前端页面（如支持折叠，展开，切换页面）
+5. 角色卡内容较多或角色卡需要时，可生成复杂的前端页面（如支持折叠，展开，切换页面功能等）
+6. 页面如非必须，请尽量使用中文
 
 ### Regex Scripts
-(正则脚本，必须是合法的 JSON 数组格式，配合世界书条目或正文内容。包含字段：
-- scriptName (字符串): 脚本名称
-- findRegex (字符串): 正则表达式 (如 /pattern/flags)
+(正则脚本，必须是合法的 JSON 数组格式，配合世界书条目或正文内容，正则表达式不要太过宽泛，注意添加负向回顾，例如(?<!\w)，以防止替换正文内容时，错误地匹配并替换了CSS或UI样式代码中的函数括号)。
+包含字段：
+- scriptName (字符串): 脚本名称（中文）
+- findRegex (字符串): 完整的正则表达式字符串，必须包含斜杠和修饰符 (如 /pattern/gims，常用修饰符 g=全局, i=忽略大小写, m=多行, s=点匹配换行)
+- trimStrings (字符串数组): (可选) 移除的字符串列表
 - replaceString (字符串): 替换内容
 - placement (数字数组 [1,2,3]): 1=User, 2=AI, 3=WI
 - markdownOnly (布尔): 仅在Markdown渲染时生效
@@ -1122,7 +1178,8 @@ ${options.generateExtra ? `### World Info
                                         scriptName: p.scriptName || 'Script',
                                         findRegex: p.findRegex || '',
                                         replaceString: p.replaceString || '',
-                                        placement: p.placement || [2],
+                                        trimStrings: p.trimStrings || [],
+                                        placement: (p.placement || [2]).map(v => Number(v)),
                                         disabled: false,
                                         markdownOnly: p.markdownOnly ?? false,
                                         promptOnly: p.promptOnly ?? false,
@@ -1332,7 +1389,7 @@ ${options.generateExtra ? `### World Info
                     scriptName: script.scriptName,
                     findRegex: script.findRegex,
                     replaceString: script.replaceString,
-                    trimStrings: [],
+                    trimStrings: script.trimStrings || [],
                     placement: script.placement,
                     disabled: script.disabled,
                     markdownOnly: script.markdownOnly,
@@ -1430,6 +1487,8 @@ ${options.generateExtra ? `### World Info
                 updateEntryKeys,
                 addRegexScript,
                 removeRegexScript,
+                hasFlag,
+                toggleFlag,
                 handleImageUpload,
                 generateCharacter,
                 stopGeneration,
