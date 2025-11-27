@@ -224,7 +224,7 @@
                                 <div class="card-body p-6 gap-5">
                                     <div class="form-control">
                                         <label class="label font-bold text-base-content/70 text-sm uppercase tracking-wide">场景 Scenario</label>
-                                        <textarea v-model="currentCharacter.scenario" class="textarea textarea-bordered h-64 bg-base-200/30 focus:bg-base-100 transition-colors leading-relaxed" placeholder="当前的背景故事或环境设置..."></textarea>
+                                        <textarea v-model="currentCharacter.scenario" class="textarea textarea-bordered h-32 bg-base-200/30 focus:bg-base-100 transition-colors leading-relaxed" placeholder="当前的背景故事或环境设置..."></textarea>
                                     </div>
                                     <div class="form-control">
                                         <label class="label font-bold text-base-content/70 text-sm uppercase tracking-wide">作者注释 Creator Notes</label>
@@ -911,7 +911,7 @@ ${options.generateExtra ? `### World Info
 (世界书条目，用来加强设定，补充详细内容，增强AI记忆能力，必须是合法的 JSON 数组格式，应根据角色卡复杂程度决定条目数量的多少。包含字段：
 - keys (字符串数组): 触发词
 - content (字符串): 内容（必须详细，尤其有关剧情内容/角色设定/UI部分/美化页面的，禁止省略）
-- comment (字符串): (必填，最好是中文，作为条目的标识)
+- comment (字符串): (简略易懂的描述，最好是中文，作为条目的标识)
 - constant (布尔): 是否常驻
 - selective (布尔): 是否选择性触发
 - position (数字 0-4): 插入位置
@@ -929,10 +929,10 @@ ${options.generateExtra ? `### World Info
 3. HTML页面要合适精美完整，有沉浸感，你应该将界面包裹在代码块内<html>...<html>,再放置于楼层消息中（并确保正则替换后的结果正确），界面背景不能为透明，禁止使用emoji，可以使用svg，颜色不要太深，不要使用敷衍简单的样式
 4. 要确保后续对话的前端界面和开场白里的前端界面有一致性，必要时要有确保生成前端界面，ui,美化生成的世界书条目，条目中包含UI需要的信息
 5. 角色卡内容较多或角色卡需要时，可生成复杂的前端页面（如支持折叠，展开，切换页面功能等）
-6. 页面如非必须，请尽量使用中文
+6. 页面如非角色卡必须，请尽量使用中文
 
 ### Regex Scripts
-(正则脚本，必须是合法的 JSON 数组格式，配合世界书条目或正文内容，正则仅负责将简单内容/占位符，渲染替换为UI/美化样式等，如名字高亮。其他复杂内容如状态栏，精美UI等请交给世界书的规范样式，正则表达式不要太过宽泛，如有需要请注意添加负向回顾，例如(?<!\w)，以防止替换正文内容时，错误地匹配并替换了CSS或UI样式代码中的函数括号。开场白也属于上下文的一部分，正则在开场白也生效，请确保开场白在正则生效后也能保持正确样式)。
+(正则脚本，必须是合法的 JSON 数组格式，配合正文内容。正则仅负责将正文简单内容/占位符，渲染替换美化样式等，如名字高亮。为了防止渲染错误，其他的状态栏，UI等实现请交给世界书的规范样式，禁止通过正则替换实现。正则表达式不要太过宽泛，如有需要请注意添加负向回顾，例如(?<!\w)，以防止替换正文内容时，错误地匹配并替换了CSS或UI样式代码中的函数括号。开场白也属于上下文的一部分，正则在开场白也生效，请确保开场白在正则生效后也能保持正确样式)。
 包含字段：
 - scriptName (字符串): 脚本名称（中文）
 - findRegex (字符串): 完整的正则表达式字符串，必须包含斜杠和修饰符 (如 /pattern/gims，常用修饰符 g=全局, i=忽略大小写, m=多行, s=点匹配换行)
