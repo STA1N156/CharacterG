@@ -924,7 +924,7 @@ ${options.generateExtra ? `### World Info
 - group (字符串): 分组名
 )
 用户有对HTML网页前端代码自动渲染能力，请生成一些能够增强沉浸感的内容（你应该将界面包裹在代码块内<html>...<html>,再放置于楼层消息中,例如：
-1. 适合当前剧情的背景设定、地点、物品描述，标准的UI/美化页面的详尽规范样式/逻辑/模板等必须确保常驻。
+1. 适合当前剧情的背景设定、地点、物品描述，标准的UI/美化页面的详尽规范样式/逻辑/模板等插入位置必须确保常驻，禁止按深度。
 2. 或者生成一个"精美的前端页面"在正文的末尾部分（使用精美独立的HTML页面作为content的一部分），用于显示配合角色卡的相关内容，如手机页面，角色状态栏，内心想法等，且内容要为中文，或其他沉浸感的UI/美化内容，并在content中包含样式。
 3. HTML页面要合适精美完整，有沉浸感，你应该将界面包裹在代码块内<html>...<html>,再放置于楼层消息中（并确保正则替换后的结果正确），界面背景不能为透明，禁止使用emoji，可以使用svg，颜色不要太深，不要使用敷衍简单的样式
 4. 要确保后续对话的前端界面和开场白里的前端界面有一致性，必要时要有确保生成前端界面，ui,美化生成的世界书条目，条目中包含UI需要的信息
@@ -932,7 +932,7 @@ ${options.generateExtra ? `### World Info
 6. 页面如非必须，请尽量使用中文
 
 ### Regex Scripts
-(正则脚本，负责将简单内容渲染替换为UI/美化样式等，如名字高亮，必须是合法的 JSON 数组格式，如有请配合世界书条目或正文内容，正则表达式不要太过宽泛，如有需要请注意添加负向回顾，例如(?<!\w)，以防止替换正文内容时，错误地匹配并替换了CSS或UI样式代码中的函数括号。开场白也属于上下文的一部分，正则在开场白也生效，请确保开场白在正则生效后也能保持正确样式)。
+(正则脚本，必须是合法的 JSON 数组格式，配合世界书条目或正文内容，正则仅负责将简单内容/占位符，渲染替换为UI/美化样式等，如名字高亮。其他复杂内容如状态栏，精美UI等请交给世界书的规范样式，正则表达式不要太过宽泛，如有需要请注意添加负向回顾，例如(?<!\w)，以防止替换正文内容时，错误地匹配并替换了CSS或UI样式代码中的函数括号。开场白也属于上下文的一部分，正则在开场白也生效，请确保开场白在正则生效后也能保持正确样式)。
 包含字段：
 - scriptName (字符串): 脚本名称（中文）
 - findRegex (字符串): 完整的正则表达式字符串，必须包含斜杠和修饰符 (如 /pattern/gims，常用修饰符 g=全局, i=忽略大小写, m=多行, s=点匹配换行)
@@ -946,74 +946,112 @@ ${options.generateExtra ? `### World Info
 - minDepth (数字或null): 最小生效深度
 - maxDepth (数字或null): 最大生效深度
 )
-注意：如果生成了状态栏或UI美化相关的世界书，可以选择生成配套的正则脚本，正则脚本负责将简单内容渲染替换为UI样式等，将这些内容渲染到界面上或替换特定的占位符。开场白也属于上下文的一部分，正则在开场白也生效，请确保开场白在正则生效后也能保持正确样式` : ''}
+注意：如果生成了状态栏或UI美化相关的世界书，可以选择生成配套的正则脚本，正则仅负责将简单内容渲染替换为UI/美化样式等，如名字高亮，请不要尝试处理状态栏等复杂内容，如名字高亮这些简单内容将通过渲染到界面上。开场白也属于上下文的一部分，正则在开场白也生效，请确保开场白在正则生效后也能保持正确样式` : ''}
 
 请确保内容丰富、生动，符合哥哥描述。确保所有设置都已按要求生成。不要输出任何思考过程。`;
 
-                try {
-                    const response = await fetch(`${api.url}/chat/completions`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${api.key}`
-                        },
-                        body: JSON.stringify({
-                            model: api.model,
-                            messages: [
-                                { role: 'system', content: systemPrompt },
-                                { role: 'user', content: prompt.value }
-                            ],
-                            stream: api.stream,
-                            temperature: 1.0
-                        }),
-                        signal: abortController.value.signal
-                    });
+                const originalStream = api.stream;
 
-                    if (!response.ok) throw new Error('API Request Failed');
+                const performGeneration = async (isRetry = false) => {
+                    let fullContent = '';
+                    
+                    if (isRetry) {
+                        generatedSections.clear();
+                        generationProgress.value = 0;
+                        generationStatus.value = '正在重试(非流式)...';
+                    }
 
-                    if (api.stream) {
-                        const reader = response.body.getReader();
-                        const decoder = new TextDecoder();
-                        let buffer = '';
+                    try {
+                        const response = await fetch(`${api.url}/chat/completions`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${api.key}`
+                            },
+                            body: JSON.stringify({
+                                model: api.model,
+                                messages: [
+                                    { role: 'system', content: systemPrompt },
+                                    { role: 'user', content: prompt.value }
+                                ],
+                                stream: api.stream,
+                                temperature: 1.0
+                            }),
+                            signal: abortController.value.signal
+                        });
 
-                        while (true) {
-                            const { done, value } = await reader.read();
-                            if (done) break;
-                            
-                            const chunk = decoder.decode(value, { stream: true });
-                            const lines = chunk.split('\n');
-                            for (const line of lines) {
-                                if (line.startsWith('data: ')) {
-                                    const data = line.slice(6);
-                                    if (data === '[DONE]') continue;
-                                    try {
-                                        const json = JSON.parse(data);
-                                        const content = json.choices[0]?.delta?.content || '';
-                                        if (content) {
-                                            // 打印流式输出原始内容，用于调试
-                                            console.log('%c[AI Stream]', 'color: #9ca3af; font-size: 10px;', content);
-                                            buffer += content;
-                                            parseBuffer(buffer);
-                                        }
-                                    } catch (e) {}
+                        if (!response.ok) throw new Error('API Request Failed');
+
+                        if (api.stream) {
+                            const reader = response.body.getReader();
+                            const decoder = new TextDecoder();
+                            let buffer = '';
+
+                            while (true) {
+                                const { done, value } = await reader.read();
+                                if (done) break;
+                                
+                                const chunk = decoder.decode(value, { stream: true });
+                                const lines = chunk.split('\n');
+                                for (const line of lines) {
+                                    if (line.startsWith('data: ')) {
+                                        const data = line.slice(6);
+                                        if (data === '[DONE]') continue;
+                                        try {
+                                            const json = JSON.parse(data);
+                                            const content = json.choices[0]?.delta?.content || '';
+                                            if (content) {
+                                                console.log('%c[AI Stream]', 'color: #9ca3af; font-size: 10px;', content);
+                                                buffer += content;
+                                                parseBuffer(buffer);
+                                            }
+                                        } catch (e) {}
+                                    }
                                 }
                             }
+                            fullContent = buffer;
+                        } else {
+                            const data = await response.json();
+                            const content = data.choices[0]?.message?.content || '';
+                            console.log('%c[AI Response]', 'color: #9ca3af; font-size: 10px;', content);
+                            parseBuffer(content);
+                            fullContent = content;
                         }
-                    } else {
-                        const data = await response.json();
-                        const content = data.choices[0]?.message?.content || '';
-                        console.log('%c[AI Response]', 'color: #9ca3af; font-size: 10px;', content);
-                        parseBuffer(content);
+
+                        // Check for truncation (missing avatar prompt)
+                        const hasAvatarPrompt = /<image>[\s\S]*?<\/image>/i.test(fullContent);
+                        if (!hasAvatarPrompt && !isRetry) {
+                            console.warn('检测到头像提示词缺失，判定为截断');
+                            showToast('检测到内容截断，自动切换非流式重试...', 'warning');
+                            api.stream = false;
+                            
+                            // Small delay
+                            await new Promise(resolve => setTimeout(resolve, 500));
+                            
+                            // Retry
+                            await performGeneration(true);
+                            return;
+                        }
+
+                        generationProgress.value = 100;
+                        generationStatus.value = '生成完成';
+                        showToast('角色生成完成！', 'success');
+                    } catch (error) {
+                        throw error;
                     }
-                    generationProgress.value = 100;
-                    generationStatus.value = '生成完成';
-                    showToast('角色生成完成！', 'success');
+                };
+
+                try {
+                    await performGeneration();
                 } catch (error) {
                     if (error.name !== 'AbortError') {
                         alert('生成失败: ' + error.message);
                         generationStatus.value = '生成失败';
                     }
                 } finally {
+                    // Restore original stream setting
+                    api.stream = originalStream;
+                    
                     // Delay hiding the progress bar slightly to show 100%
                     setTimeout(() => {
                         isGenerating.value = false;
