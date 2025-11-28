@@ -967,6 +967,8 @@ ${options.generateExtra ? `### World Info
 3. **沉浸式容器 (Immersive Container)**：
    - 建议生成一个正则脚本，将整条消息包裹在一个符合角色氛围的容器中。
 
+   特别注意：正则的生成顺序应为主容器样式-状态栏-高亮，禁止更改顺序，否则会造成渲染错误
+
 **世界书 (World Info) 生成规范 - UI 标准化**：
 - **严禁**在 World Info content 中直接写 HTML 代码。
 - **必须**在 World Info 中包含一条 "Output Rules" (输出规则) 条目，且该条目必须常驻，插入位置必须为角色前，禁止按深度。
