@@ -1254,7 +1254,7 @@ ${prompt.value}
                                 tag = tag.replace(/^###|###$/g, '').trim();
                                 console.log('%c[头像生成] 成功提取到提示词:', 'color: #10b981; font-weight: bold', tag);
                                 
-                                const url = `https://std.loliyc.com/generate?tag=${encodeURIComponent(tag)}&token=STD-yxyLAKX8ekcAwDoSuwMo&model=nai-diffusion-4-5-full&artist=[[[artist:dishwasher1910]]], {{yd_(orange_maru)}}, [artist:ciloranko], [artist:sho_(sho_lwlw)], [ningen mame], year 2024,&size=竖图&steps=42&scale=5.5&cfg=0&sampler=k_dpmpp_2m_sde&negative=pixelate&nocache=0&noise_schedule=karras`;
+                                const url = `https://std.loliyc.com/generate?tag=${encodeURIComponent(tag)}&token=STD-yxyLAKX8ekcAwDoSuwMo&model=nai-diffusion-4-5-full&artist=[[[artist:dishwasher1910]]], {{yd_(orange_maru)}}, [artist:ciloranko], [artist:sho_(sho_lwlw)], [ningen mame], year 2024,&size=竖图&steps=35&scale=6&cfg=0&sampler=k_dpmpp_2m_sde&negative=pixelate&nocache=0&noise_schedule=karras`;
                                 
                                 // 只有当 URL 发生变化时才更新和打印，避免流式传输中的重复操作
                                 if (currentCharacter.value.avatar !== url) {
