@@ -953,7 +953,7 @@ ${options.generateExtra ? `### World Info
    - 脚本配置参考：
      - scriptName: "状态栏渲染"
      - findRegex: \`/:::STATUS\\s+mood="(.*?)"\\s+lust="(.*?)"\\s*:::/i\` (务必确保正则能准确匹配数据块)
-     - replaceString: \`<div style="...">...内容(状态名必须显示中文)...</div>\` (必须包含 Style 标签或内联 Style，防止样式污染)
+     - replaceString: \`<div style="...">...内容(状态条目名如 好感度 必须为中文)...</div>\` (必须包含 Style 标签或内联 Style，防止样式污染)
      - placement: [2] (仅 AI)
 
 **功能建议**：
