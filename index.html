@@ -894,7 +894,7 @@
 ### Name
 (角色卡名字，人物中文名字请不要使用林，苏姓，且避免使用婉儿作为名字，多人或复杂角色卡应使用整体内容/世界观/主题为角色卡名称)
 ### Description
-(角色卡具体描述，支持 {{user}} 占位符，未具体要求性别则默认为女，或类似系统的无性别角色/旁白，需要包含发色，瞳孔颜色，身材等外貌特征和其他特点)
+(角色卡具体描述，支持 {{user}} 占位符，未具体要求性别则默认为女，或类似系统的无性别角色/旁白)
 ### Personality
 (详细的角色卡设定，尽量详尽)
 ### Scenario
@@ -953,12 +953,12 @@ ${options.generateExtra ? `### World Info
    - 脚本配置参考：
      - scriptName: "状态栏渲染"
      - findRegex: \`/:::STATUS\\s+mood="(.*?)"\\s+lust="(.*?)"\\s*:::/i\` (务必确保正则能准确匹配数据块)
-     - replaceString: \`<div style="...">...内容(状态条目名如 好感度 必须为中文)...</div>\` (必须包含 Style 标签或内联 Style，防止样式污染)
+     - replaceString: \`<div style="...">...内容(状态名必须显示中文)...</div>\` (必须包含 Style 标签或内联 Style，防止样式污染)
      - placement: [2] (仅 AI)
 
 **功能建议**：
 1. **沉浸式状态栏 (Standard UI)**：
-   - 在 First Message 的末尾添加一行符合人物卡设定的状态标记，状态栏条目内容应根据人物卡设定变化，不少于4条，如 \`:::STATUS mood="害羞" lust="20" :::\`。
+   - 在 First Message 的末尾添加一行符合人物卡设定的状态标记，如 \`:::STATUS mood="害羞" lust="20" :::\`。
    - 生成配套的正则脚本，将其替换为一个精美的 HTML 嵌入式面板或完整页面。**注意：状态栏显示的文字标签（如心情、体力、好感等）必须显示为中文。**
 2. **正文美化 (Text Highlight)**：
    - **对话高亮**：生成正则脚本，识别双引号内的对话 \`“.*?”\` 或 \`".*?"\`，替换为高亮样式。
@@ -979,6 +979,9 @@ ${options.generateExtra ? `### World Info
 - 必须包含自然的对话和描写。
 - **必须**在末尾包含上述定义的**数据标记**（如 \`:::STATUS ... :::\`），以便用户导入后立即看到效果。
 **特别强调**：请生成**非常精美**的 HTML/CSS 样式，使用合适的配色，精美设计，阴影效果。确保正则能完美匹配并消除原始内容，不要留下残余字符。对于正文高亮，请选择与角色相符的颜色。` : ''}
+
+### 哥哥的描述
+${prompt.value}
 
 请确保内容丰富、生动，符合哥哥描述。确保所有设置都已按要求生成。不要输出任何思考过程。`;
 
@@ -1004,7 +1007,7 @@ ${options.generateExtra ? `### World Info
                                 model: api.model,
                                 messages: [
                                     { role: 'system', content: systemPrompt },
-                                    { role: 'user', content: prompt.value }
+                                    { role: 'user', content: "请开始生成。" }
                                 ],
                                 stream: api.stream,
                                 temperature: 1.0
