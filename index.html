@@ -587,7 +587,7 @@
             // Options with persistence
             const savedOptions = localStorage.getItem('ai_chargen_options');
             const options = reactive(savedOptions ? JSON.parse(savedOptions) : {
-                generateExtra: false
+                generateExtra: true
             });
 
             watch(options, (newVal) => {
@@ -900,7 +900,7 @@
 ### Scenario
 (场景或背景故事)
 ### First Message
-(开场白，支持 {{user}} 占位符，500-1000字，可配合世界书和正则，包含同一样式的精美前端页面)
+(开场白，支持 {{user}} 占位符，500-1000字。**关键：不要直接写 HTML UI。** 请在末尾包含用于生成精美 UI 的“数据块”或“标记”，让正则脚本将其渲染为可视化界面)
 ### Creator Notes
 (作者注释，必填，用于向用户说明人物卡)
 ### Talkativeness
@@ -908,14 +908,14 @@
 ### Avatar Prompt（前面的内容结束后）
 (头像提示词，请使用英文描写，格式必须为: <image>image###生成的提示词###</image> ，仅一段符合人物卡的生图提示词，novelai格式，有nsfw内容请添加nsfw标签)
 ${options.generateExtra ? `### World Info
-(世界书条目，用来加强设定，补充详细内容，增强AI记忆能力，必须是合法的 JSON 数组格式，应根据角色卡复杂程度决定条目数量的多少。包含字段：
+(世界书条目，用来加强设定，补充详细内容，规范UI内容，增强AI记忆能力，必须是合法的 JSON 数组格式，应根据角色卡复杂程度决定条目数量的多少。包含字段：
 - keys (字符串数组): 触发词
 - content (字符串): 内容（必须详细，尤其有关剧情内容/角色设定/UI部分/美化页面的，禁止省略）
 - comment (字符串): (简略易懂的描述，最好是中文，作为条目的标识)
 - constant (布尔): 是否常驻
 - selective (布尔): 是否选择性触发
 - position (数字 0-4): 插入位置
-- order (数字，0-99): 插入顺序，多个条目存在时顺序数字不允许重复，应确保使用不同的插入顺序
+- order (数字，1-99): 插入顺序，数字不允许重复，多个条目应确保使用不同的插入顺序
 - probability (数字 0-100): 触发概率
 - useProbability (布尔): 是否启用概率
 - depth (数字): 扫描深度
@@ -923,20 +923,10 @@ ${options.generateExtra ? `### World Info
 - matchWholeWords (布尔): 是否全词匹配
 - group (字符串): 分组名
 )
-用户有对HTML网页前端代码自动渲染能力，请生成一些能够增强沉浸感的内容，必须确保将界面包裹在<html>...<html>中,再放置于楼层消息中,而不是<div class="interactive-panel">这类省略内容
-例如：
-1. 适合当前剧情的背景设定、地点、物品描述，标准的UI/美化页面的详尽规范样式/逻辑/模板等插入位置必须确保常驻，禁止按深度。
-2. 或者生成一个"精美的前端页面"在正文的末尾部分（使用精美独立的HTML页面作为content的一部分），用于显示配合角色卡的相关内容，如手机页面，角色状态栏，内心想法等，且内容要为中文，或其他沉浸感的UI/美化内容，并在content中包含样式。
-3. HTML页面要合适精美完整，有沉浸感，必须确保将界面包裹在代码块<html>...<html>内,再放置于楼层消息中（并确保正则替换后的结果正确），界面背景不能为透明，禁止使用emoji，可以使用svg，颜色不要太深，不要使用敷衍简单的样式
-4. 要确保后续对话的前端界面和开场白里的前端界面有一致性，必要时要有确保生成前端界面，ui,美化生成的世界书条目，条目中包含UI需要的信息
-5. 角色卡内容较多或角色卡需要时，可生成复杂的前端页面（如支持折叠，展开，切换页面功能等）
-6. 页面如非角色卡必须，请尽量使用中文
-
 ### Regex Scripts
-(正则脚本，必须是合法的 JSON 数组格式，配合正文内容。正则仅负责将正文简单内容/占位符，渲染替换美化样式等，如名字高亮。为了防止渲染错误，其他的状态栏，UI等实现请交给世界书的规范样式，禁止通过正则替换实现。正则表达式不要太过宽泛，如有需要请注意添加负向回顾，例如(?<!\w)，以防止替换正文内容时，错误地匹配并替换了CSS或UI样式代码中的函数括号。开场白也属于上下文的一部分，正则在开场白也生效，请确保开场白在正则生效后也能保持正确样式)。
-包含字段：
+(正则脚本，用于美化输出或处理特定逻辑，必须是合法的 JSON 数组格式。包含字段：
 - scriptName (字符串): 脚本名称（中文）
-- findRegex (字符串): 完整的正则表达式字符串，必须包含斜杠和修饰符 (如 /pattern/gims，常用修饰符 g=全局, i=忽略大小写, m=多行, s=点匹配换行)
+- findRegex (字符串): 正则表达式
 - trimStrings (字符串数组): (可选) 移除的字符串列表
 - replaceString (字符串): 替换内容
 - placement (数字数组 [1,2,3]): 1=User, 2=AI, 3=WI
@@ -947,7 +937,46 @@ ${options.generateExtra ? `### World Info
 - minDepth (数字或null): 最小生效深度
 - maxDepth (数字或null): 最大生效深度
 )
-注意：如果生成了状态栏或UI美化相关的世界书，可以选择生成配套的正则脚本，正则仅负责将简单内容渲染替换为UI/美化样式等，如名字高亮，请不要尝试处理状态栏等复杂内容，如名字高亮这些简单内容将通过渲染到界面上。开场白也属于上下文的一部分，正则在开场白也生效，请确保开场白在正则生效后也能保持正确样式` : ''}
+
+**高级UI构建指南（纯净数据模式）**：
+为了解决直接输出 HTML 导致的混乱和上下文浪费问题，**严禁在正文/First Message中直接编写 HTML**。
+必须采用 **“隐藏数据块 + 正则渲染”** 的模式。
+
+**关键策略**：
+1. **数据块格式**：
+   - 推荐定义一个紧凑的单行标记，例如 \`:::UI_STATE mood="Happy" energy="85":::\`
+   - 避免直接使用复杂的 JSON 块，除非配合专门的正则解析。
+
+2. **Regex Scripts 生成要求**：
+   - **建议**包含 "对话高亮"、"心理描写优化" 和 "名字高亮" 的脚本。
+   - **必须**包含 "状态栏渲染" 脚本，用于将数据标记转化为精美 UI。
+   - 脚本配置参考：
+     - scriptName: "状态栏渲染"
+     - findRegex: \`/:::STATUS\\s+mood="(.*?)"\\s+lust="(.*?)"\\s*:::/i\` (务必确保正则能准确匹配数据块)
+     - replaceString: \`<div style="...">...内容(状态名必须显示中文)...</div>\` (必须包含 Style 标签或内联 Style，防止样式污染)
+     - placement: [2] (仅 AI)
+
+**功能建议**：
+1. **沉浸式状态栏 (Standard UI)**：
+   - 在 First Message 的末尾添加一行状态标记，如 \`:::STATUS mood="害羞" lust="20" :::\`。
+   - 生成配套的正则脚本，将其替换为一个精美的 HTML 嵌入式面板或完整页面。**注意：状态栏显示的文字标签（如心情、体力等）必须显示为中文。**
+2. **正文美化 (Text Highlight)**：
+   - **对话高亮**：生成正则脚本，识别双引号内的对话 \`“.*?”\` 或 \`".*?"\`，替换为高亮样式。
+   - **心理活动**：生成正则脚本，识别圆括号内的心理活动 \`（.*?）\` 或 \`\\(.*?\\)\`，替换为差异化样式。
+   - **名字高亮**：生成正则脚本，识别出现在正文中的角色名字，替换为高亮样式。
+3. **沉浸式容器 (Immersive Container)**：
+   - 建议生成一个正则脚本，将整条消息包裹在一个符合角色氛围的容器中。
+
+**世界书 (World Info) 生成规范 - UI 标准化**：
+- **严禁**在 World Info content 中直接写 HTML 代码。
+- **必须**在 World Info 中包含一条 "Output Rules" (输出规则) 条目，且该条目必须常驻，插入位置必须为角色前，禁止按深度。
+- 该条目内容应明确指示 AI：“在每段回复的末尾，必须根据当前状态输出标准格式的数据块，如 \`:::STATUS mood='...' ... :::\`”。
+- 这样做能确保 AI 在后续对话中持续输出可被正则渲染的 UI 数据，做到像开场白一样规范。
+
+**First Message 要求**：
+- 必须包含自然的对话和描写。
+- **必须**在末尾包含上述定义的**数据标记**（如 \`:::STATUS ... :::\`），以便用户导入后立即看到效果。
+**特别强调**：请生成**非常精美**的 HTML/CSS 样式，使用合适的配色，圆角设计，阴影效果。确保正则能完美匹配并消除原始内容，不要留下残余字符。对于正文高亮，请选择与角色相符的颜色。` : ''}
 
 请确保内容丰富、生动，符合哥哥描述。确保所有设置都已按要求生成。不要输出任何思考过程。`;
 
@@ -959,7 +988,7 @@ ${options.generateExtra ? `### World Info
                     if (isRetry) {
                         generatedSections.clear();
                         generationProgress.value = 0;
-                        generationStatus.value = '切换至非流式重试(生成时间可能会较长，请耐心等待)...';
+                        generationStatus.value = '切换至非流式输出(请耐心等待)...';
                     }
 
                     try {
@@ -1019,10 +1048,12 @@ ${options.generateExtra ? `### World Info
                             fullContent = content;
                         }
 
-                        // Check for truncation (missing avatar prompt)
+                        // Check for truncation (missing avatar prompt or missing regex scripts when requested)
                         const hasAvatarPrompt = /<image>[\s\S]*?<\/image>/i.test(fullContent);
-                        if (!hasAvatarPrompt && !isRetry) {
-                            console.warn('检测到头像提示词缺失，判定为截断');
+                        const hasRegexScripts = options.generateExtra ? /### Regex Scripts/i.test(fullContent) : true;
+
+                        if ((!hasAvatarPrompt || !hasRegexScripts) && !isRetry) {
+                            console.warn('检测到内容截断（头像提示词或正则脚本缺失），判定为截断');
                             showToast('检测到内容截断，自动切换非流式重试...', 'warning');
                             api.stream = false;
                             
@@ -1255,7 +1286,7 @@ ${options.generateExtra ? `### World Info
                         post_history_instructions: char.post_history_instructions,
                         tags: char.tags,
                         creator: "AI CharGen",
-                        character_version: "1.0",
+                        character_version: "0.9",
                         alternate_greetings: [],
                         extensions: {
                             talkativeness: char.talkativeness,
