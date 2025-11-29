@@ -104,6 +104,29 @@
                     <input type="text" v-model="api.model" class="input input-bordered w-full bg-base-200/50" placeholder="gpt-4..." />
                 </div>
                 <div class="form-control w-full">
+                    <label class="label"><span class="label-text font-medium">头像生成风格</span></label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div
+                            class="border rounded-xl p-3 cursor-pointer transition-all duration-200 flex items-center justify-center gap-2 relative overflow-hidden select-none group"
+                            :class="options.avatarStyle === 'default' ? 'border-primary bg-primary/10 text-primary ring-2 ring-primary/20 shadow-sm' : 'border-base-300 bg-base-100 hover:border-base-content/30 hover:bg-base-200/50'"
+                            @click="options.avatarStyle = 'default'"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" x2="9.01" y1="9" y2="9"/><line x1="15" x2="15.01" y1="9" y2="9"/></svg>
+                            <span class="font-bold text-sm">默认风格</span>
+                            <div v-if="options.avatarStyle === 'default'" class="absolute -right-3 -top-3 w-8 h-8 bg-primary/20 rounded-full blur-xl"></div>
+                        </div>
+                        <div
+                            class="border rounded-xl p-3 cursor-pointer transition-all duration-200 flex items-center justify-center gap-2 relative overflow-hidden select-none group"
+                            :class="options.avatarStyle === 'hentai' ? 'border-secondary bg-secondary/10 text-secondary ring-2 ring-secondary/20 shadow-sm' : 'border-base-300 bg-base-100 hover:border-base-content/30 hover:bg-base-200/50'"
+                            @click="options.avatarStyle = 'hentai'"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.5c-1.6 0-3-1-3-3 0-3.5 3-5.5 6-5.5 1.5 0 3 2.5 3 2.5s-.5 4-2.5 5c-1 0-2.5 1-3.5 1Z"/><path d="M12 21.5c1.6 0 3-1 3-3 0-3.5-3-5.5-6-5.5-1.5 0-3 2.5-3 2.5s.5 4 2.5 5c1 0 2.5 1 3.5 1Z"/><path d="M7 2c-2 2-2 5 .5 8 .5-2 1.5-3.5 3-4"/><path d="M17 2c2 2 2 5-.5 8-.5-2-1.5-3.5-3-4"/></svg>
+                            <span class="font-bold text-sm">本子风</span>
+                            <div v-if="options.avatarStyle === 'hentai'" class="absolute -right-3 -top-3 w-8 h-8 bg-secondary/20 rounded-full blur-xl"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-control w-full">
                     <label class="label cursor-pointer justify-start gap-4">
                         <span class="label-text font-medium">流式输出</span>
                         <input type="checkbox" v-model="api.stream" class="toggle toggle-primary" />
@@ -573,6 +596,11 @@
             const currentCharacterIndex = ref(0);
             const storageQuotaExceeded = ref(false);
             
+            // Persist active index
+            watch(currentCharacterIndex, (newVal) => {
+                localStorage.setItem('ai_chargen_active_index', newVal);
+            });
+
             // Progress State
             const generationProgress = ref(0);
             const generationStatus = ref('准备中...');
@@ -586,9 +614,11 @@
 
             // Options with persistence
             const savedOptions = localStorage.getItem('ai_chargen_options');
-            const options = reactive(savedOptions ? JSON.parse(savedOptions) : {
-                generateExtra: true
-            });
+            const defaultOptions = {
+                generateExtra: true,
+                avatarStyle: 'default'
+            };
+            const options = reactive(savedOptions ? { ...defaultOptions, ...JSON.parse(savedOptions) } : defaultOptions);
 
             watch(options, (newVal) => {
                 localStorage.setItem('ai_chargen_options', JSON.stringify(newVal));
@@ -666,6 +696,18 @@
                             } catch (e) {
                                 console.error('Migration parsing error', e);
                             }
+                        }
+                    }
+
+                    // Restore active index
+                    const savedIndex = localStorage.getItem('ai_chargen_active_index');
+                    if (savedIndex !== null) {
+                        const idx = parseInt(savedIndex);
+                        if (!isNaN(idx) && idx >= 0 && idx < characters.value.length) {
+                            currentCharacterIndex.value = idx;
+                        } else if (characters.value.length > 0) {
+                            // If saved index is invalid (e.g. deleted), go to last
+                            currentCharacterIndex.value = characters.value.length - 1;
                         }
                     }
                 } catch (err) {
@@ -994,7 +1036,7 @@ ${prompt.value}
                     if (isRetry) {
                         generatedSections.clear();
                         generationProgress.value = 0;
-                        generationStatus.value = '切换至非流式输出(请耐心等待)...';
+                        generationStatus.value = '非流式输出重试中(请耐心等待)...';
                     }
 
                     try {
@@ -1115,7 +1157,7 @@ ${prompt.value}
                     { key: 'First Message', field: 'first_mes', label: '开场白' },
                     { key: 'Creator Notes', field: 'creator_notes', label: '作者注释' },
                     { key: 'Talkativeness', field: 'talkativeness', label: '活跃度' },
-                    { key: 'Avatar Prompt', field: 'avatar_prompt', label: '头像提示词' },
+                    { key: 'Avatar Prompt', field: 'avatar_prompt', label: '头像' },
                     { key: 'World Info', field: 'world_info_json', label: '世界书' },
                     { key: 'Regex Scripts', field: 'regex_scripts_json', label: '正则脚本' }
                 ];
@@ -1149,27 +1191,34 @@ ${prompt.value}
                             // Calculate Progress with Weights
                             let currentProgress = 0;
                             let completedBaseCount = 0;
-                            let completedExtraCount = 0;
+                            let completedRegex = false;
 
                             generatedSections.forEach(key => {
                                 if (baseSectionKeys.has(key)) completedBaseCount++;
-                                else if (extraSectionKeys.has(key)) completedExtraCount++;
+                                if (key === 'Regex Scripts') completedRegex = true;
                             });
 
                             if (options.generateExtra) {
-                                // 有额外内容：基础占 70%，额外占 30%
-                                // 基础部分 8 个，每个占 70/8 = 8.75%
-                                // 额外部分 2 个，每个占 30/2 = 15%
-                                const baseProgress = (completedBaseCount / 8) * 70;
-                                const extraProgress = (completedExtraCount / 2) * 30;
-                                currentProgress = baseProgress + extraProgress;
+                                // 有额外内容：基础部分占 60%，世界书占 20%，正则占 20%
+                                // 基础部分 8 个字段，每个占 60/8 = 7.5%
+                                const baseProgress = (completedBaseCount / 8) * 60;
+                                
+                                // 世界书部分：检测到 World Info 时不立即加满，而是等待下一个阶段
+                                // 只有当检测到 Regex Scripts 时，才认为世界书部分已完成（+20%）
+                                const worldProgress = generatedSections.has('Regex Scripts') ? 20 : 0;
+
+                                // 正则部分：正在生成正则时，不增加进度，保持在 80%
+                                // 直到整个生成过程结束（performGeneration 函数末尾）才会设为 100%
+                                const regexProgress = 0;
+
+                                currentProgress = baseProgress + worldProgress + regexProgress;
                             } else {
                                 // 无额外内容：基础占 100%
                                 currentProgress = (completedBaseCount / 8) * 100;
                             }
 
-                            // Ensure progress doesn't exceed 99% until fully done
-                            generationProgress.value = Math.min(currentProgress, 99);
+                            // Ensure progress doesn't exceed 99% until fully done, and is integer
+                            generationProgress.value = Math.floor(Math.min(currentProgress, 99));
                         }
 
                         if (section.field === 'world_info_json') {
@@ -1254,7 +1303,12 @@ ${prompt.value}
                                 tag = tag.replace(/^###|###$/g, '').trim();
                                 console.log('%c[头像生成] 成功提取到提示词:', 'color: #10b981; font-weight: bold', tag);
                                 
-                                const url = `https://std.loliyc.com/generate?tag=${encodeURIComponent(tag)}&token=STD-yxyLAKX8ekcAwDoSuwMo&model=nai-diffusion-4-5-full&artist=[[[artist:dishwasher1910]]], {{yd_(orange_maru)}}, [artist:ciloranko], [artist:sho_(sho_lwlw)], [ningen mame], year 2024,&size=竖图&steps=40&scale=6&cfg=0&sampler=k_dpmpp_2m_sde&negative=pixelate&nocache=0&noise_schedule=karras`;
+                                let url;
+                                if (options.avatarStyle === 'hentai') {
+                                    url = `https://std.loliyc.com/generate?tag=${encodeURIComponent(tag)}&token=STD-yxyLAKX8ekcAwDoSuwMo&model=nai-diffusion-4-5-full&artist={{artist:yd_(orange maru)}}, nixeu, {ikuchan kaoru}, cutesexyrobutts, redrop, [[artist:kojima saya]], lam_(ramdayo), oekakizuki, qiandaiyiyu, &size=竖图&steps=40&scale=6&cfg=0&sampler=k_dpmpp_2m_sde&nocache=0&noise_schedule=karras`;
+                                } else {
+                                    url = `https://std.loliyc.com/generate?tag=${encodeURIComponent(tag)}&token=STD-yxyLAKX8ekcAwDoSuwMo&model=nai-diffusion-4-5-full&artist=[[[artist:dishwasher1910]]], {{yd_(orange_maru)}}, [artist:ciloranko], [artist:sho_(sho_lwlw)], [ningen mame], year 2024,&size=竖图&steps=40&scale=6&cfg=0&sampler=k_dpmpp_2m_sde&negative=pixelate&nocache=0&noise_schedule=karras`;
+                                }
                                 
                                 // 只有当 URL 发生变化时才更新和打印，避免流式传输中的重复操作
                                 if (currentCharacter.value.avatar !== url) {
